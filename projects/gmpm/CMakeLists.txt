@@ -19,9 +19,6 @@ target_include_directories(zshelper INTERFACE
 target_compile_features(zshelper INTERFACE cxx_std_17 cuda_std_17)
 if (WIN32)
 else()
-target_compile_options(zshelper 
-  INTERFACE        $<$<COMPILE_LANGUAGE:CXX>:-march=native>
-)
 endif()
 
 #add_library(zeno_zstest SHARED test.cpp)
@@ -51,6 +48,7 @@ target_compile_options(zeno_zsfluid
   PRIVATE        $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe --display_error_number,--diag_suppress=implicit_return_from_non_void_function,--diag_suppress=2642,--diag_suppress=554>
 )
 
+#[=[
 # zeno_gipc
 add_library(zeno_gipc SHARED)
 target_sources(zeno_gipc PRIVATE
@@ -76,6 +74,7 @@ set_target_properties(zeno_gipc
                 CUDA_RESOLVE_DEVICE_SYMBOLS ON
                 CUDA_ARCHITECTURES "60"
                 )
+#]=]
 
 add_library(zeno_mpm SHARED)
 target_sources(zeno_mpm PRIVATE
@@ -137,9 +136,8 @@ target_sources(zeno_zsfem PRIVATE
   fem/Fiber.cpp
   fem/Integrator.cpp
   fem/QuasiStaticStepping.cu
-  fem/BaryCentricInterpolator.cu
   fem/Codim.cu
-  fem/TestAugLag.cu
+  # fem/TestAugLag.cu
   fem/FastQuasiStaticStepping.cu
 )
 
@@ -166,12 +164,16 @@ target_link_libraries(zeno_zsfem PRIVATE zshelper)
 
 add_library(zeno_geometry SHARED)
 target_sources(zeno_geometry PRIVATE
+  geometry/linear_system/mfcg.hpp
   geometry/kernel/laplace_matrix.hpp
   geometry/kernel/gradient_field.hpp
-  geometry/laplace_equation.cu
-  geometry/gradient_field.cu
-  geometry/update_zs_skinning_weight.cu
-  geometry/zs_do_skinning.cu
+  geometry/kernel/bary_centric_weights.hpp
+  geometry/SolveLaplacian.cu
+  geometry/VectorField.cu
+  geometry/SetupSkinningWeight.cu
+  geometry/Skinning.cu
+  geometry/BaryCentricInterpolator.cu
+  geometry/BiharmonicBoundedWeight.cu
 )
 
 if (${ZS_ENABLE_CUDA})

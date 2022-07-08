@@ -36,8 +36,8 @@ struct FastQuasiStaticStepping : INode {
                                     vtemp = proxy<space>({}, vtemp),
                                     res = proxy<space>(res), tag, model = model,volf = volf] 
                                     ZS_LAMBDA (int ei) mutable {
-                auto DmInv = eles.pack<3, 3>("IB", ei);
-                auto inds = eles.pack<4>("inds", ei).reinterpret_bits<int>();
+                auto DmInv = eles.template pack<3, 3>("IB", ei);
+                auto inds = eles.template pack<4>("inds", ei).template reinterpret_bits<int>();
                 vec3 xs[4] = {vtemp.pack<3>(tag, inds[0]), vtemp.pack<3>(tag, inds[1]),
                             vtemp.pack<3>(tag, inds[2]), vtemp.pack<3>(tag, inds[3])};
                 mat3 F{};
@@ -104,9 +104,9 @@ struct FastQuasiStaticStepping : INode {
                                         b_verts = proxy<space>({},b_verts),
                                         verts = proxy<space>({}, verts),
                                         eles = proxy<space>({}, eles),tag, model, volf = volf] ZS_LAMBDA (int ei) mutable {
-                auto DmInv = eles.pack<3, 3>("IB", ei);
+                auto DmInv = eles.template pack<3, 3>("IB", ei);
                 auto dFdX = dFdXMatrix(DmInv);
-                auto inds = eles.pack<4>("inds", ei).reinterpret_bits<int>();
+                auto inds = eles.template pack<4>("inds", ei).template reinterpret_bits<int>();
                 vec3 xs[4] = {vtemp.pack<3>(tag, inds[0]), vtemp.pack<3>(tag, inds[1]),
                                 vtemp.pack<3>(tag, inds[2]), vtemp.pack<3>(tag, inds[3])};
                 mat3 F{};
@@ -177,7 +177,7 @@ struct FastQuasiStaticStepping : INode {
                     verts = proxy<space>({},verts),eles = proxy<space>({},eles),tag,
                     Htag,stiffness,bone_driven_weight = bone_driven_weight]
                         ZS_LAMBDA(int ei) mutable {
-                auto DmInv = eles.pack<3, 3>("IB", ei);
+                auto DmInv = eles.template pack<3, 3>("IB", ei);
                 auto dFdX = dFdXMatrix(DmInv);
                 auto vol = eles("vol",ei);
                 etemp.pack<12,12>(Htag,ei) = stiffness * vol * dFdX.transpose() * dFdX;            
@@ -219,9 +219,9 @@ struct FastQuasiStaticStepping : INode {
                                             b_verts = proxy<space>({},b_verts),
                                             verts = proxy<space>({}, verts),
                                             eles = proxy<space>({}, eles),tag = xTag,HTag, model, volf = volf] ZS_LAMBDA (int ei) mutable {
-                auto DmInv = eles.pack<3, 3>("IB", ei);
+                auto DmInv = eles.template pack<3, 3>("IB", ei);
                 auto dFdX = dFdXMatrix(DmInv);
-                auto inds = eles.pack<4>("inds", ei).reinterpret_bits<int>();
+                auto inds = eles.template pack<4>("inds", ei).template reinterpret_bits<int>();
                 vec3 xs[4] = {vtemp.pack<3>(tag, inds[0]), vtemp.pack<3>(tag, inds[1]),
                                 vtemp.pack<3>(tag, inds[2]), vtemp.pack<3>(tag, inds[3])};
                 mat3 F{};
@@ -300,7 +300,7 @@ struct FastQuasiStaticStepping : INode {
                                 eles = proxy<space>({}, eles), dxTag, bTag, HTag] ZS_LAMBDA(int ei) mutable {
                 constexpr int dim = 3;
                 constexpr auto dimp1 = dim + 1;
-                auto inds = eles.pack<dimp1>("inds", ei).reinterpret_bits<int>();
+                auto inds = eles.template pack<dimp1>("inds", ei).template reinterpret_bits<int>();
                 zs::vec<T, dimp1 * dim> temp{};
                 for (int vi = 0; vi != dimp1; ++vi)
                 for (int d = 0; d != dim; ++d) {
@@ -533,9 +533,29 @@ struct FastQuasiStaticStepping : INode {
 
         constexpr auto space = execspace_e::cuda;
         auto cudaPol = cuda_exec();   
-        
+
+        // use the initial guess if given
+        if(verts.hasProperty("init_x")) {
+            fmt::print("set up initial guess for equation solution\n");
+            cudaPol(zs::range(verts.size()),
+                    [vtemp = proxy<space>({}, vtemp),verts = proxy<space>({}, verts)] __device__(int vi) mutable {
+                        auto x = verts.pack<3>("init_x", vi);
+                        vtemp.tuple<3>("xn", vi) = x;
+                    });      
+        } else {// use the previous simulation result
+            cudaPol(zs::range(verts.size()),
+                    [vtemp = proxy<space>({}, vtemp),
+                    verts = proxy<space>({}, verts)] __device__(int vi) mutable {
+                        auto x = verts.pack<3>("x", vi);
+                        vtemp.tuple<3>("xn", vi) = x;
+                    });
+        }
         match([&](auto &elasticModel){
             A.laplacian(cudaPol,elasticModel,"xn","L",vtemp,etemp);
+        })(models.getElasticModel());
+
+        match([&](auto &elasticModel){
+            A.hessian(cudaPol,elasticModel,"xn","H",vtemp,etemp);
         })(models.getElasticModel());
 
         // build preconditioner for fast cg convergence
@@ -586,11 +606,6 @@ struct FastQuasiStaticStepping : INode {
         });
 
         // solve the problem using quasi-newton solver
-        T fx;
-        match([&](auto &elasticModel){
-            fx = A.energy(cudaPol,elasticModel,"xn",vtemp);
-        })(models.getElasticModel());
-
         match([&](auto &elasticModel){
             A.gradient(cudaPol,elasticModel,"xn",vtemp,etemp);
         })(models.getElasticModel());
@@ -598,7 +613,7 @@ struct FastQuasiStaticStepping : INode {
         T gn = std::sqrt(dot(cudaPol,vtemp,"grad","grad"));
         T xn = std::sqrt(dot(cudaPol,vtemp,"xn","xn"));
 
-        if(gn > epsilon && gn > xn * rel_epsilon) {
+        if(gn > epsilon && gn > xn * rel_epsilon && false) {
             int k = 0;
             T step = 1. / gn;
             // solve for cg newton dir might be better?
@@ -610,6 +625,8 @@ struct FastQuasiStaticStepping : INode {
             int nm_corr = 0;
             std::vector<T> m_alpha(quasi_newton_window_size);
             std::vector<T> m_ys(quasi_newton_window_size);
+
+            fmt::print("SOLVE EQUA USING QUASI_NEWTON\n");
 
             while(k < nm_newton_iters) {
                 // copy the x and grad
@@ -677,11 +694,14 @@ struct FastQuasiStaticStepping : INode {
                 step = 1.;
                 ++k;
             }
+        }else{
+            fmt::print("EARLY TERMINATION\n");
         }
         cudaPol(zs::range(vtemp.size()),
             [vtemp = proxy<space>({},vtemp),verts = proxy<space>({},verts)] ZS_LAMBDA(int vi) mutable {
                 verts.pack<3>("x",vi) = vtemp.pack<3>("xn",vi);
         });
+
         set_output("ZSParticles", zstets);
     }
 };

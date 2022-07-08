@@ -1,8 +1,7 @@
-//
-// Created by zydiii on 22-7-9.
-//
+#pragma once
 
-#ifndef ZENO_RENDERPASS_H
-#define ZENO_RENDERPASS_H
+namespace zeno {
+    struct RenderPass {
 
-#endif //ZENO_RENDERPASS_H
+    };
+}

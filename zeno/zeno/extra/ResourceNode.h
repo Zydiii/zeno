@@ -1,8 +1,26 @@
-//
-// Created by zydiii on 22-7-9.
-//
+#pragma once
 
-#ifndef ZENO_RESOURCEBASE_H
-#define ZENO_RESOURCEBASE_H
+#include <zeno/core/INode.h>
+#include <zeno/extra/RenderPass.h>
+#include <string>
+#include <vector>
 
-#endif //ZENO_RESOURCEBASE_H
+namespace zeno {
+
+struct RenderPass;
+
+struct ResourceBase {
+    std::size_t id;
+    std::string name;
+    std::size_t refCount;
+
+    const RenderPass* creator;
+    std::vector<const RenderPass*> readers;
+    std::vector<const RenderPass*> writers;
+
+    ZENO_API ResourceBase(const std::string& name, const RenderPass* creator);
+    ZENO_API void instantiate();
+    ZENO_API void release();
+};
+
+}

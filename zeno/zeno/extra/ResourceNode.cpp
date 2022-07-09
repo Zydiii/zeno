@@ -10,7 +10,22 @@ ZENO_API ResourceBase::ResourceBase(const std::string &name, const RenderPass *c
 }
 ZENO_API ResourceBase::~ResourceBase() = default;
 
-ZENO_API void ResourceBase::instantiate() {}
+template <typename resourceType>
+ZENO_API ResourceNode<resourceType>::ResourceNode(const std::string &name,
+                                         const RenderPass *creator,
+                                         const resourceType &type)
+    : ResourceBase(name, creator), type(type) {}
 
-ZENO_API void ResourceBase::release() {}
+template <typename ResourceType>
+ZENO_API ResourceNode<ResourceType>::~ResourceNode() = default;
+
+template <typename ResourceType>
+ZENO_API void ResourceNode<ResourceType>::instantiate() {
+    std::get<std::unique_ptr<ResourceType>>(resource) = std::make_unique<ResourceType>();
+}
+
+template <typename ResourceType>
+ZENO_API void ResourceNode<ResourceType>::release() {
+    std::get<std::unique_ptr<ResourceType>>(resource).reset();
+}
 }

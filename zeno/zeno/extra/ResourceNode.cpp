@@ -2,7 +2,7 @@
 
 namespace zeno {
 
-ZENO_API ResourceBase::ResourceBase(const std::string &name, const RenderPass *creator)
+ZENO_API ResourceBase::ResourceBase(const std::string &name, const RenderPassBase *creator)
     : name(name), creator(creator), refCount(0)
 {
     static std::size_t id_{0};
@@ -12,7 +12,7 @@ ZENO_API ResourceBase::~ResourceBase() = default;
 
 template <typename resourceType>
 ZENO_API ResourceNode<resourceType>::ResourceNode(const std::string &name,
-                                         const RenderPass *creator,
+                                         const RenderPassBase *creator,
                                          const resourceType &type)
     : ResourceBase(name, creator), type(type) {}
 
@@ -28,4 +28,5 @@ template <typename ResourceType>
 ZENO_API void ResourceNode<ResourceType>::release() {
     std::get<std::unique_ptr<ResourceType>>(resource).reset();
 }
+
 }

@@ -7,18 +7,18 @@
 
 namespace zeno {
 
-struct RenderPass;
+struct RenderPassBase;
 
 struct ResourceBase {
     std::size_t id;
     std::string name;
     std::size_t refCount;
 
-    const RenderPass* creator;
-    std::vector<const RenderPass*> readers;
-    std::vector<const RenderPass*> writers;
+    const RenderPassBase* creator;
+    std::vector<const RenderPassBase*> readers;
+    std::vector<const RenderPassBase*> writers;
 
-    ZENO_API ResourceBase(const std::string& name, const RenderPass* creator);
+    ZENO_API ResourceBase(const std::string& name, const RenderPassBase* creator);
     ZENO_API ~ResourceBase();
 
     ZENO_API virtual void instantiate() = 0;
@@ -30,7 +30,7 @@ struct ResourceNode : ResourceBase {
     ResourceType type;
     std::variant<std::unique_ptr<ResourceType>, ResourceType*> resource;
 
-    ZENO_API ResourceNode(const std::string& name, const RenderPass* creator, const resourceType& type);
+    ZENO_API ResourceNode(const std::string& name, const RenderPassBase* creator, const resourceType& type);
     ZENO_API ~ResourceNode();
 
     ZENO_API virtual void instantiate() override;

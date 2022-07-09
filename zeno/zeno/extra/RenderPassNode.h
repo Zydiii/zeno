@@ -16,7 +16,7 @@ namespace zeno {
         std::size_t refCount;
 
         ZENO_API RenderPassBase(std::string const &name);
-        ZENO_API ~RenderPassBase();
+        ZENO_API virtual ~RenderPassBase();
 
         ZENO_API virtual void setup() = 0;
         ZENO_API virtual void render() = 0;

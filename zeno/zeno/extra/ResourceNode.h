@@ -19,6 +19,8 @@ struct ResourceBase {
     std::vector<const RenderPass*> writers;
 
     ZENO_API ResourceBase(const std::string& name, const RenderPass* creator);
+    ZENO_API ~ResourceBase();
+
     ZENO_API void instantiate();
     ZENO_API void release();
 };

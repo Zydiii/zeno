@@ -183,7 +183,7 @@ struct CodimStepping : INode {
         // rotate
         tmp = BCbasis[vi].transpose() * tmp * BCbasis[vj];
         // project
-        if (projectDBC || (!projectDBC && (BCfixed[vi] > 0 || BCfixed[vj] > 0)))
+        if (projectDBC) {
           if (BCorder[vi] > 0 || BCorder[vj] > 0) {
             if (vi == vj) {
               for (int i = 0; i != BCorder[vi]; ++i)
@@ -195,6 +195,20 @@ struct CodimStepping : INode {
                   tmp(i, j) = 0;
             }
           }
+        } else {
+          if (BCorder[vi] > 0 && BCfixed[vi] ||
+              BCorder[vj] > 0 && BCfixed[vj]) {
+            if (vi == vj) {
+              for (int i = 0; i != BCorder[vi]; ++i)
+                for (int j = 0; j != BCorder[vj]; ++j)
+                  tmp(i, j) = (i == j ? 1 : 0);
+            } else {
+              for (int i = 0; i != BCorder[vi]; ++i)
+                for (int j = 0; j != BCorder[vj]; ++j)
+                  tmp(i, j) = 0;
+            }
+          }
+        }
         for (int i = 0; i != 3; ++i)
           for (int j = 0; j != 3; ++j)
             H(offsetI + i, offsetJ + j) = tmp(i, j);
@@ -403,9 +417,6 @@ struct CodimStepping : INode {
             int BCorder = vtemp("BCorder", vi);
             auto x = BCbasis.transpose() * vtemp.pack<3>(tag, vi);
             int d = 0;
-            // also ignore "fixed" dof
-            if (int BCfixed = vtemp("BCfixed", vi); BCfixed != 0)
-              BCorder = 0;
             for (; d != BCorder; ++d)
               vtemp("cons", d, vi) = x[d] - BCtarget[d];
             for (; d != 3; ++d)
@@ -1346,239 +1357,151 @@ struct CodimStepping : INode {
       constexpr auto space = execspace_e::cuda;
       for (auto &primHandle : prims)
         if (primHandle.category == ZenoParticles::surface)
-          cudaPol(zs::range(primHandle.getEles().size()),
-                  [vtemp = proxy<space>({}, vtemp),
-                   etemp = proxy<space>({}, primHandle.etemp),
-                   eles = proxy<space>({}, primHandle.getEles()), model, gTag,
-                   dt = this->dt, projectDBC = projectDBC,
-                   vOffset = primHandle.vOffset,
-                   includeHessian] __device__(int ei) mutable {
-                    auto IB = eles.template pack<2, 2>("IB", ei);
-                    auto inds = eles.template pack<3>("inds", ei)
-                                    .template reinterpret_bits<int>() +
-                                vOffset;
-                    auto vole = eles("vol", ei);
-                    vec3 xs[3] = {vtemp.template pack<3>("xn", inds[0]),
-                                  vtemp.template pack<3>("xn", inds[1]),
-                                  vtemp.template pack<3>("xn", inds[2])};
-                    auto x1x0 = xs[1] - xs[0];
-                    auto x2x0 = xs[2] - xs[0];
+          cudaPol(
+              zs::range(primHandle.getEles().size()),
+              [vtemp = proxy<space>({}, vtemp),
+               etemp = proxy<space>({}, primHandle.etemp),
+               eles = proxy<space>({}, primHandle.getEles()), model, gTag,
+               dt = this->dt, projectDBC = projectDBC,
+               vOffset = primHandle.vOffset,
+               includeHessian] __device__(int ei) mutable {
+                auto IB = eles.template pack<2, 2>("IB", ei);
+                auto inds = eles.template pack<3>("inds", ei)
+                                .template reinterpret_bits<int>() +
+                            vOffset;
+                auto vole = eles("vol", ei);
+                vec3 xs[3] = {vtemp.template pack<3>("xn", inds[0]),
+                              vtemp.template pack<3>("xn", inds[1]),
+                              vtemp.template pack<3>("xn", inds[2])};
+                auto x1x0 = xs[1] - xs[0];
+                auto x2x0 = xs[2] - xs[0];
 
-                    mat3 BCbasis[3];
-                    int BCorder[3];
-                    int BCfixed[3];
-                    for (int i = 0; i != 3; ++i) {
-                      BCbasis[i] = vtemp.pack<3, 3>("BCbasis", inds[i]);
-                      BCorder[i] = vtemp("BCorder", inds[i]);
-                      BCfixed[i] = vtemp("BCfixed", inds[i]);
-                    }
-                    zs::vec<T, 9, 9> H;
-                    if (BCorder[0] == 3 && BCorder[1] == 3 && BCorder[2] == 3) {
-                      etemp.tuple<9 * 9>("He", ei) = H.zeros();
-                      return;
-                    }
-
-#if 0
-      mat2 A{}, temp{};
-      auto dA_div_dx = zs::vec<T, 4, 9>::zeros();
-      A(0, 0) = x1x0.l2NormSqr();
-      A(1, 0) = A(0, 1) = x1x0.dot(x2x0);
-      A(1, 1) = x2x0.l2NormSqr();
-
-      auto IA = inverse(A);
-      auto lnJ = zs::log(determinant(A) * determinant(IB)) / 2;
-      temp = -dt * dt * vole *
-             (model.mu / 2 * IB + (-model.mu + model.lam * lnJ) / 2 * IA);
-      for (int d = 0; d != 3; ++d) {
-        dA_div_dx(0, d) = -2 * x1x0[d];
-        dA_div_dx(0, 3 + d) = 2 * x1x0[d];
-        dA_div_dx(1, d) = -x1x0[d] - x2x0[d];
-        dA_div_dx(1, 3 + d) = x2x0[d];
-        dA_div_dx(1, 6 + d) = x1x0[d];
-        dA_div_dx(2, d) = -x1x0[d] - x2x0[d];
-        dA_div_dx(2, 3 + d) = x2x0[d];
-        dA_div_dx(2, 6 + d) = x1x0[d];
-        dA_div_dx(3, d) = -2 * x2x0[d];
-        dA_div_dx(3, 6 + d) = 2 * x2x0[d];
-      }
-
-      for (int i_ = 0; i_ != 3; ++i_) {
-        auto vi = inds[i_];
-        for (int d = 0; d != 3; ++d) {
-          int i = i_ * 3 + d;
-          atomic_add(
-              exec_cuda, &vtemp(gTag, d, vi),
-              dA_div_dx(0, i) * temp(0, 0) + dA_div_dx(1, i) * temp(1, 0) +
-                  dA_div_dx(2, i) * temp(0, 1) + dA_div_dx(3, i) * temp(1, 1));
-        }
-      }
-
-      if (!includeHessian) return;
-      // hessian rotation: trans^T hess * trans
-      // left trans^T: multiplied on rows
-      // right trans: multiplied on cols
-      
-      using mat9 = zs::vec<T, 9, 9>;
-      mat9 ahess[4];
-      for (int i = 0; i != 4; ++i)
-        ahess[i] = mat9::zeros();
-      for (int i = 0; i != 3; ++i) {
-        ahess[3](i, i) = ahess[0](i, i) = 2;
-        ahess[3](6 + i, 6 + i) = ahess[0](3 + i, 3 + i) = 2;
-        ahess[3](i, 6 + i) = ahess[0](i, 3 + i) = -2;
-        ahess[3](6 + i, i) = ahess[0](3 + i, i) = -2;
-      }
-      for (int i = 0; i != 3; ++i) {
-        ahess[2](3 + i, 6 + i) = ahess[1](3 + i, 6 + i) = 1;
-        ahess[2](6 + i, 3 + i) = ahess[1](6 + i, 3 + i) = 1;
-        ahess[2](i, 3 + i) = ahess[1](i, 3 + i) = -1;
-        ahess[2](i, 6 + i) = ahess[1](i, 6 + i) = -1;
-        ahess[2](3 + i, i) = ahess[1](3 + i, i) = -1;
-        ahess[2](6 + i, i) = ahess[1](6 + i, i) = -1;
-        ahess[2](i, i) = ahess[1](i, i) = 2;
-      }
-
-      zs::vec<T, 9> ainvda;
-      for (int i_ = 0; i_ < 3; ++i_) {
-        for (int d = 0; d < 3; ++d) {
-          int i = i_ * 3 + d;
-          ainvda(i) = dA_div_dx(0, i) * IA(0, 0) + dA_div_dx(1, i) * IA(1, 0) +
-                      dA_div_dx(2, i) * IA(0, 1) + dA_div_dx(3, i) * IA(1, 1);
-
-          const T deta = determinant(A);
-          const T lnJ = zs::log(deta * determinant(IB)) / 2;
-          const T term1 = (-model.mu + model.lam * lnJ) / 2;
-          H = (-term1 + model.lam / 4) * dyadic_prod(ainvda, ainvda);
-
-          zs::vec<T, 4, 9> aderivadj;
-          for (int d = 0; d != 9; ++d) {
-            aderivadj(0, d) = dA_div_dx(3, d);
-            aderivadj(1, d) = -dA_div_dx(1, d);
-            aderivadj(2, d) = -dA_div_dx(2, d);
-            aderivadj(3, d) = dA_div_dx(0, d);
-          }
-          H += term1 / deta * aderivadj.transpose() * dA_div_dx;
-
-          for (int i = 0; i < 2; ++i)
-            for (int j = 0; j < 2; ++j) {
-              H += (term1 * IA(i, j) + model.mu / 2 * IB(i, j)) *
-                   ahess[i + j * 2];
-            }
-        }
-      }
-      make_pd(H);
-#else
-              zs::vec<T, 3, 2> Ds{x1x0[0], x2x0[0], x1x0[1],
-                                  x2x0[1], x1x0[2], x2x0[2]};
-              auto F = Ds * IB;
-
-              auto dFdX = dFdXMatrix(IB, wrapv<3>{});
-              auto dFdXT = dFdX.transpose();
-              auto f0 = col(F, 0);
-              auto f1 = col(F, 1);
-              auto f0Norm = zs::sqrt(f0.l2NormSqr());
-              auto f1Norm = zs::sqrt(f1.l2NormSqr());
-              auto f0Tf1 = f0.dot(f1);
-              zs::vec<T, 3, 2> Pstretch, Pshear;
-              for (int d = 0; d != 3; ++d) {
-                Pstretch(d, 0) = 2 * (1 - 1 / f0Norm) * F(d, 0);
-                Pstretch(d, 1) = 2 * (1 - 1 / f1Norm) * F(d, 1);
-                Pshear(d, 0) = 2 * f0Tf1 * f1(d);
-                Pshear(d, 1) = 2 * f0Tf1 * f0(d);
-              }
-              auto vecP = flatten(model.mu *Pstretch + (model.mu * 0.3)*Pshear);
-              auto vfdt2 = -vole * (dFdXT * vecP) * (dt * dt);
-
-              for (int i = 0; i != 3; ++i) {
-                auto vi = inds[i];
-                for (int d = 0; d != 3; ++d)
-                  atomic_add(exec_cuda, &vtemp(gTag, d, vi),
-                             (T)vfdt2(i * 3 + d));
-              }
-
-              if(!includeHessian) return;
-              /// ref: A Finite Element Formulation of Baraff-Witkin Cloth
-              // suggested by huang kemeng
-              auto stretchHessian = [&F, &model]() {
-                auto H = zs::vec<T, 6, 6>::zeros();
-                const zs::vec<T, 2> u{1, 0};
-                const zs::vec<T, 2> v{0, 1};
-                const T I5u = (F * u).l2NormSqr();
-                const T I5v = (F * v).l2NormSqr();
-                const T invSqrtI5u = (T)1 / zs::sqrt(I5u);
-                const T invSqrtI5v = (T)1 / zs::sqrt(I5v);
-
-                H(0, 0) = H(1, 1) = H(2, 2) = zs::max(1 - invSqrtI5u, (T)0);
-                H(3, 3) = H(4, 4) = H(5, 5) = zs::max(1 - invSqrtI5v, (T)0);
-
-                const auto fu = col(F, 0).normalized();
-                const T uCoeff = (1 - invSqrtI5u >= 0) ? invSqrtI5u : (T)1;
-                for (int i = 0; i != 3; ++i)
-                  for (int j = 0; j != 3; ++j)
-                    H(i, j) += uCoeff * fu(i) * fu(j);
-
-                const auto fv = col(F, 1).normalized();
-                const T vCoeff = (1 - invSqrtI5v >= 0) ? invSqrtI5v : (T)1;
-                for (int i = 0; i != 3; ++i)
-                  for (int j = 0; j != 3; ++j)
-                    H(3 + i, 3 + j) += vCoeff * fv(i) * fv(j);
-
-                H *= model.mu;
-                return H;
-              };
-              auto shearHessian = [&F, &model]() {
-                using mat6 = zs::vec<T, 6, 6>;
-                auto H = mat6::zeros();
-                const zs::vec<T, 2> u{1, 0};
-                const zs::vec<T, 2> v{0, 1};
-                const T I6 = (F * u).dot(F * v);
-                const T signI6 = I6 >= 0 ? 1 : -1;
-
-                H(3, 0) = H(4, 1) = H(5, 2) = H(0, 3) = H(1, 4) = H(2, 5) =
-                    (T)1;
-
-                const auto g_ = F * (dyadic_prod(u, v) + dyadic_prod(v, u));
-                zs::vec<T, 6> g{};
-                for (int j = 0, offset = 0; j != 2; ++j) {
-                  for (int i = 0; i != 3; ++i)
-                    g(offset++) = g_(i, j);
+                mat3 BCbasis[3];
+                int BCorder[3];
+                int BCfixed[3];
+                for (int i = 0; i != 3; ++i) {
+                  BCbasis[i] = vtemp.pack<3, 3>("BCbasis", inds[i]);
+                  BCorder[i] = vtemp("BCorder", inds[i]);
+                  BCfixed[i] = vtemp("BCfixed", inds[i]);
+                }
+                zs::vec<T, 9, 9> H;
+                if (BCorder[0] == 3 && BCorder[1] == 3 && BCorder[2] == 3) {
+                  etemp.tuple<9 * 9>("He", ei) = H.zeros();
+                  return;
                 }
 
-                const T I2 = F.l2NormSqr();
-                const T lambda0 =
-                    (T)0.5 * (I2 + zs::sqrt(I2 * I2 + (T)12 * I6 * I6));
+                zs::vec<T, 3, 2> Ds{x1x0[0], x2x0[0], x1x0[1],
+                                    x2x0[1], x1x0[2], x2x0[2]};
+                auto F = Ds * IB;
 
-                const zs::vec<T, 6> q0 =
-                    (I6 * H * g + lambda0 * g).normalized();
+                auto dFdX = dFdXMatrix(IB, wrapv<3>{});
+                auto dFdXT = dFdX.transpose();
+                auto f0 = col(F, 0);
+                auto f1 = col(F, 1);
+                auto f0Norm = zs::sqrt(f0.l2NormSqr());
+                auto f1Norm = zs::sqrt(f1.l2NormSqr());
+                auto f0Tf1 = f0.dot(f1);
+                zs::vec<T, 3, 2> Pstretch, Pshear;
+                for (int d = 0; d != 3; ++d) {
+                  Pstretch(d, 0) = 2 * (1 - 1 / f0Norm) * F(d, 0);
+                  Pstretch(d, 1) = 2 * (1 - 1 / f1Norm) * F(d, 1);
+                  Pshear(d, 0) = 2 * f0Tf1 * f1(d);
+                  Pshear(d, 1) = 2 * f0Tf1 * f0(d);
+                }
+                auto vecP =
+                    flatten(model.mu * Pstretch + (model.mu * 0.3) * Pshear);
+                auto vfdt2 = -vole * (dFdXT * vecP) * (dt * dt);
 
-                auto t = mat6::identity();
-                t = 0.5 * (t + signI6 * H);
+                for (int i = 0; i != 3; ++i) {
+                  auto vi = inds[i];
+                  for (int d = 0; d != 3; ++d)
+                    atomic_add(exec_cuda, &vtemp(gTag, d, vi),
+                               (T)vfdt2(i * 3 + d));
+                }
 
-                const zs::vec<T, 6> Tq = t * q0;
-                const auto normTq = Tq.l2NormSqr();
+                if (!includeHessian)
+                  return;
+                /// ref: A Finite Element Formulation of Baraff-Witkin Cloth
+                // suggested by huang kemeng
+                auto stretchHessian = [&F, &model]() {
+                  auto H = zs::vec<T, 6, 6>::zeros();
+                  const zs::vec<T, 2> u{1, 0};
+                  const zs::vec<T, 2> v{0, 1};
+                  const T I5u = (F * u).l2NormSqr();
+                  const T I5v = (F * v).l2NormSqr();
+                  const T invSqrtI5u = (T)1 / zs::sqrt(I5u);
+                  const T invSqrtI5v = (T)1 / zs::sqrt(I5v);
 
-                mat6 dPdF = zs::abs(I6) * (t - (dyadic_prod(Tq, Tq) / normTq)) +
-                            lambda0 * (dyadic_prod(q0, q0));
-                dPdF *= (model.mu * 0.3);
-                return dPdF;
-              };
-              auto He = stretchHessian() + shearHessian();
-              H = dFdX.transpose() * He * dFdX;
-#endif
-                    H *= dt * dt * vole;
+                  H(0, 0) = H(1, 1) = H(2, 2) = zs::max(1 - invSqrtI5u, (T)0);
+                  H(3, 3) = H(4, 4) = H(5, 5) = zs::max(1 - invSqrtI5v, (T)0);
 
-                    // rotate and project
-                    rotate_hessian(H, BCbasis, BCorder, BCfixed, projectDBC);
-                    etemp.tuple<9 * 9>("He", ei) = H;
-                    for (int vi = 0; vi != 3; ++vi) {
-                      for (int i = 0; i != 3; ++i)
-                        for (int j = 0; j != 3; ++j) {
-                          atomic_add(exec_cuda,
-                                     &vtemp("P", i * 3 + j, inds[vi]),
-                                     H(vi * 3 + i, vi * 3 + j));
-                        }
+                  const auto fu = col(F, 0).normalized();
+                  const T uCoeff = (1 - invSqrtI5u >= 0) ? invSqrtI5u : (T)1;
+                  for (int i = 0; i != 3; ++i)
+                    for (int j = 0; j != 3; ++j)
+                      H(i, j) += uCoeff * fu(i) * fu(j);
+
+                  const auto fv = col(F, 1).normalized();
+                  const T vCoeff = (1 - invSqrtI5v >= 0) ? invSqrtI5v : (T)1;
+                  for (int i = 0; i != 3; ++i)
+                    for (int j = 0; j != 3; ++j)
+                      H(3 + i, 3 + j) += vCoeff * fv(i) * fv(j);
+
+                  H *= model.mu;
+                  return H;
+                };
+                auto shearHessian = [&F, &model]() {
+                  using mat6 = zs::vec<T, 6, 6>;
+                  auto H = mat6::zeros();
+                  const zs::vec<T, 2> u{1, 0};
+                  const zs::vec<T, 2> v{0, 1};
+                  const T I6 = (F * u).dot(F * v);
+                  const T signI6 = I6 >= 0 ? 1 : -1;
+
+                  H(3, 0) = H(4, 1) = H(5, 2) = H(0, 3) = H(1, 4) = H(2, 5) =
+                      (T)1;
+
+                  const auto g_ = F * (dyadic_prod(u, v) + dyadic_prod(v, u));
+                  zs::vec<T, 6> g{};
+                  for (int j = 0, offset = 0; j != 2; ++j) {
+                    for (int i = 0; i != 3; ++i)
+                      g(offset++) = g_(i, j);
+                  }
+
+                  const T I2 = F.l2NormSqr();
+                  const T lambda0 =
+                      (T)0.5 * (I2 + zs::sqrt(I2 * I2 + (T)12 * I6 * I6));
+
+                  const zs::vec<T, 6> q0 =
+                      (I6 * H * g + lambda0 * g).normalized();
+
+                  auto t = mat6::identity();
+                  t = 0.5 * (t + signI6 * H);
+
+                  const zs::vec<T, 6> Tq = t * q0;
+                  const auto normTq = Tq.l2NormSqr();
+
+                  mat6 dPdF =
+                      zs::abs(I6) * (t - (dyadic_prod(Tq, Tq) / normTq)) +
+                      lambda0 * (dyadic_prod(q0, q0));
+                  dPdF *= (model.mu * 0.3);
+                  return dPdF;
+                };
+                auto He = stretchHessian() + shearHessian();
+                H = dFdX.transpose() * He * dFdX;
+                H *= dt * dt * vole;
+
+                // rotate and project
+                rotate_hessian(H, BCbasis, BCorder, BCfixed, projectDBC);
+                etemp.tuple<9 * 9>("He", ei) = H;
+                for (int vi = 0; vi != 3; ++vi) {
+                  for (int i = 0; i != 3; ++i)
+                    for (int j = 0; j != 3; ++j) {
+                      atomic_add(exec_cuda, &vtemp("P", i * 3 + j, inds[vi]),
+                                 H(vi * 3 + i, vi * 3 + j));
                     }
-                  });
+                }
+              });
         else if (primHandle.category == ZenoParticles::tet)
           cudaPol(
               zs::range(primHandle.getEles().size()),
@@ -1655,28 +1578,28 @@ struct CodimStepping : INode {
         const zs::SmallString &gTag = "grad") {
       using namespace zs;
       constexpr auto space = execspace_e::cuda;
-      for (auto &primHandle : prims) {
-        auto &verts = primHandle.getVerts();
-        cudaPol(range(verts.size()),
-                [vtemp = proxy<space>({}, vtemp),
-                 verts = proxy<space>({}, verts), gTag, extForce = extForce,
-                 dt = dt,
-                 vOffset = primHandle.vOffset] __device__(int i) mutable {
-                  auto m = verts("m", i);
-                  int BCorder = vtemp("BCorder", vOffset + i);
-                  if (BCorder != 3) {
-                    vtemp.tuple<3>(gTag, vOffset + i) =
-                        m * extForce * dt * dt -
-                        m * (vtemp.pack<3>("xn", vOffset + i) -
-                             vtemp.pack<3>("xtilde", vOffset + i));
-                  }
-                  // should rotate here
-                  vtemp("P", 0, vOffset + i) += m;
-                  vtemp("P", 4, vOffset + i) += m;
-                  vtemp("P", 8, vOffset + i) += m;
-                });
-      }
-      // collision object
+      cudaPol(zs::range(coOffset),
+              [vtemp = proxy<space>({}, vtemp), gTag, extForce = extForce,
+               dt = dt] __device__(int i) mutable {
+                auto m = zs::sqr(vtemp("ws", i));
+                auto BCbasis = vtemp.template pack<3, 3>("BCbasis", i);
+                int BCorder = vtemp("BCorder", i);
+                vtemp.tuple<3>(gTag, i) =
+                    m * extForce * dt * dt -
+                    m * (vtemp.pack<3>("xn", i) - vtemp.pack<3>("xtilde", i));
+
+                auto M = mat3::identity() * m;
+                M = BCbasis.transpose() * M * BCbasis;
+                for (int r = 0; r != BCorder; ++r)
+                  for (int c = 0; c != BCorder; ++c)
+                    M(r, c) = (r == c ? 1 : 0);
+                // prepare preconditioner
+                for (int r = 0; r != 3; ++r)
+                  for (int c = 0; c != 3; ++c)
+                    vtemp("P", r * 3 + c, i) += M(r, c);
+              });
+#if 0
+              // collision object
       cudaPol(zs::range(coVerts.size()),
               [vtemp = proxy<space>({}, vtemp),
                coverts = proxy<space>({}, coVerts), projectDBC = projectDBC,
@@ -1693,6 +1616,7 @@ struct CodimStepping : INode {
                 vtemp("P", 4, i) += m;
                 vtemp("P", 8, i) += m;
               });
+#endif
     }
 #if 1
     template <typename Model>
@@ -1714,9 +1638,8 @@ struct CodimStepping : INode {
             auto m = zs::sqr(vtemp("ws", vi));
             auto x = vtemp.pack<3>(tag, vi);
             int BCorder = vtemp("BCorder", vi);
-            int BCfixed = vtemp("BCorder", vi);
             T E = 0;
-            if (BCorder != 3 && BCfixed == 0) {
+            if (BCorder != 3) {
               // inertia
               E += (T)0.5 * m * (x - vtemp.pack<3>("xtilde", vi)).l2NormSqr();
               // external force
@@ -1743,14 +1666,11 @@ struct CodimStepping : INode {
                             .template reinterpret_bits<int>() +
                         vOffset;
 
-            bool fixed[3];
-            // int BCorder[3];
+            int BCorder[3];
             for (int i = 0; i != 3; ++i)
-              // BCorder[i] = vtemp("BCorder", inds[i]);
-              fixed[i] = vtemp("BCorder", inds[i]) == 3 ||
-                         vtemp("BCfixed", inds[i]) == 1;
+              BCorder[i] = vtemp("BCorder", inds[i]);
             T E;
-            if (fixed[0] && fixed[1] && fixed[2])
+            if (BCorder[0] == 3 && BCorder[1] == 3 && BCorder[2] == 3)
               E = 0;
             else {
               auto vole = eles("vol", ei);
@@ -1791,15 +1711,12 @@ struct CodimStepping : INode {
                     vtemp.pack<3>(tag, inds[0]), vtemp.pack<3>(tag, inds[1]),
                     vtemp.pack<3>(tag, inds[2]), vtemp.pack<3>(tag, inds[3])};
 
-                bool fixed[4];
-                // int BCorder[4];
+                int BCorder[4];
                 for (int i = 0; i != 4; ++i)
-                  // BCorder[i] = vtemp("BCorder", inds[i]);
-                  fixed[i] = vtemp("BCorder", inds[i]) == 3 ||
-                             vtemp("BCfixed", inds[i]) == 1;
-
+                  BCorder[i] = vtemp("BCorder", inds[i]);
                 T E;
-                if (fixed[0] && fixed[1] && fixed[2] && fixed[3])
+                if (BCorder[0] == 3 && BCorder[1] == 3 && BCorder[2] == 3 &&
+                    BCorder[3] == 3)
                   E = 0;
                 else {
                   mat3 F{};
@@ -1818,7 +1735,7 @@ struct CodimStepping : INode {
           Es.push_back(reduce(pol, es) * dt * dt);
         }
       }
-
+#if 0
       // collision object
       es.resize(count_warps(coVerts.size()));
       es.reset(0);
@@ -1840,6 +1757,7 @@ struct CodimStepping : INode {
             reduce_to(threadIdx.x, n, E, es[threadIdx.x / 32]);
           });
       Es.push_back(reduce(pol, es));
+#endif
       // contacts
       {
 #if s_enableContact
@@ -2103,6 +2021,7 @@ struct CodimStepping : INode {
                 reduce_to(ei, numEles, E, res[0]);
               });
       }
+#if 0
       // collision object
       pol(range(coVerts.size()),
           [vtemp = proxy<space>({}, vtemp), res = proxy<space>(res), tag,
@@ -2120,6 +2039,7 @@ struct CodimStepping : INode {
             };
             reduce_to(vi, n, E, res[0]);
           });
+#endif
       // contacts
       {
 #if s_enableContact
@@ -2277,29 +2197,24 @@ struct CodimStepping : INode {
                            bTag] ZS_LAMBDA(int vi) mutable {
         vtemp.template tuple<3>(bTag, vi) = vec3::zeros();
       });
+      // inertial
+      pol(zs::range(coOffset),
+          [execTag, vtemp = proxy<space>({}, vtemp), dxTag, bTag,
+           projectDBC = projectDBC] __device__(int i) mutable {
+            auto m = zs::sqr(vtemp("ws", i));
+            mat3 BCbasis[1] = {vtemp.template pack<3, 3>("BCbasis", i)};
+            int BCorder[1] = {(int)vtemp("BCorder", i)};
+            int BCfixed[1] = {(int)vtemp("BCfixed", i)};
+            auto M = mat3::identity() * m;
+            rotate_hessian(M, BCbasis, BCorder, BCfixed, projectDBC);
+            auto dx = vtemp.template pack<3>(dxTag, i);
+            dx = M * dx;
+            for (int d = 0; d != 3; ++d)
+              atomic_add(execTag, &vtemp(bTag, d, i), dx(d));
+          });
       for (auto &primHandle : prims) {
         auto &verts = primHandle.getVerts();
         auto &eles = primHandle.getEles();
-        // inertial
-        pol(range(verts.size()),
-            [execTag, verts = proxy<space>({}, verts),
-             vtemp = proxy<space>({}, vtemp), dxTag, bTag,
-             vOffset = primHandle.vOffset] ZS_LAMBDA(int vi) mutable {
-              auto m = verts("m", vi);
-              vi += vOffset;
-              auto dx = vtemp.template pack<3>(dxTag, vi);
-              auto BCbasis = vtemp.template pack<3, 3>("BCbasis", vi);
-              int BCorder = vtemp("BCorder", vi);
-              // dx = BCbasis.transpose() * m * BCbasis * dx;
-              auto M = mat3::identity() * m;
-              M = BCbasis.transpose() * M * BCbasis;
-              for (int i = 0; i != BCorder; ++i)
-                for (int j = 0; j != BCorder; ++j)
-                  M(i, j) = (i == j ? 1 : 0);
-              dx = M * dx;
-              for (int d = 0; d != 3; ++d)
-                atomic_add(execTag, &vtemp(bTag, d, vi), dx(d));
-            });
         // elasticity
         if (primHandle.category == ZenoParticles::surface) {
 #if 0
@@ -2382,6 +2297,7 @@ struct CodimStepping : INode {
               });
 #endif
         } else if (primHandle.category == ZenoParticles::tet)
+#if 0
           pol(range(eles.size()),
               [execTag, etemp = proxy<space>({}, primHandle.etemp),
                vtemp = proxy<space>({}, vtemp), eles = proxy<space>({}, eles),
@@ -2406,7 +2322,62 @@ struct CodimStepping : INode {
                                temp[vi * dim + d]);
                   }
               });
+#else
+          pol(range(eles.size() * 144),
+              [execTag, etemp = proxy<space>({}, primHandle.etemp),
+               vtemp = proxy<space>({}, vtemp), eles = proxy<space>({}, eles),
+               dxTag, bTag, vOffset = primHandle.vOffset,
+               n = eles.size() * 144] ZS_LAMBDA(int idx) mutable {
+                constexpr int dim = 3;
+                __shared__ int offset;
+                // directly use PCG_Solve_AX9_b2 from kemeng huang
+                int Hid = idx / 144;
+                int entryId = idx % 144;
+                int MRid = entryId / 12;
+                int MCid = entryId % 12;
+                int vId = MCid / dim;
+                int axisId = MCid % dim;
+                int GRtid = idx % 12;
+
+                auto inds = eles.template pack<4>("inds", Hid)
+                                .template reinterpret_bits<int>() +
+                            vOffset;
+                T rdata =
+                    etemp("He", entryId, Hid) * vtemp(dxTag, axisId, inds[vId]);
+
+                if (threadIdx.x == 0)
+                  offset = 12 - GRtid;
+                __syncthreads();
+
+                int BRid = (threadIdx.x - offset + 12) / 12;
+                int landidx = (threadIdx.x - offset) % 12;
+                if (BRid == 0) {
+                  landidx = threadIdx.x;
+                }
+
+                auto [mask, numValid] = warp_mask(idx, n);
+                int laneId = threadIdx.x & 0x1f;
+                bool bBoundary = (landidx == 0) || (laneId == 0);
+
+                unsigned int mark =
+                    __ballot_sync(mask, bBoundary); // a bit-mask
+                mark = __brev(mark);
+                unsigned int interval =
+                    zs::math::min(__clz(mark << (laneId + 1)), 31 - laneId);
+
+                for (int iter = 1; iter < 12; iter <<= 1) {
+                  T tmp = __shfl_down_sync(mask, rdata, iter);
+                  if (interval >= iter && laneId + iter < numValid)
+                    rdata += tmp;
+                }
+
+                if (bBoundary)
+                  atomic_add(exec_cuda, &vtemp(bTag, MRid % 3, inds[MRid / 3]),
+                             rdata);
+              });
+#endif
       }
+#if 0
       // collision object
       pol(range(coVerts.size()),
           [execTag, verts = proxy<space>({}, coVerts),
@@ -2422,11 +2393,13 @@ struct CodimStepping : INode {
             for (int d = 0; d != 3; ++d)
               atomic_add(execTag, &vtemp(bTag, d, vi), dx(d));
           });
+#endif
       // contacts
       {
 #if s_enableContact
         {
           auto numPP = nPP.getVal();
+#if 0
           pol(range(numPP), [execTag, tempPP = proxy<space>({}, tempPP),
                              vtemp = proxy<space>({}, vtemp), dxTag, bTag,
                              PP = proxy<space>(PP)] ZS_LAMBDA(int ppi) mutable {
@@ -2447,7 +2420,58 @@ struct CodimStepping : INode {
                            temp[vi * dim + d]);
               }
           });
+#else
+          pol(range(numPP * 36), [execTag, tempPP = proxy<space>({}, tempPP),
+                                  vtemp = proxy<space>({}, vtemp), dxTag, bTag,
+                                  PP = proxy<space>(PP),
+                                  n = numPP * 36] ZS_LAMBDA(int idx) mutable {
+            constexpr int dim = 3;
+            __shared__ int offset;
+            // directly use PCG_Solve_AX9_b2 from kemeng huang
+            int Hid = idx / 36;
+            int entryId = idx % 36;
+            int MRid = entryId / 6;
+            int MCid = entryId % 6;
+            int vId = MCid / dim;
+            int axisId = MCid % dim;
+            int GRtid = idx % 6;
+
+            auto inds = PP[Hid];
+            T rdata =
+                tempPP("H", entryId, Hid) * vtemp(dxTag, axisId, inds[vId]);
+
+            if (threadIdx.x == 0)
+              offset = 6 - GRtid;
+            __syncthreads();
+
+            int BRid = (threadIdx.x - offset + 6) / 6;
+            int landidx = (threadIdx.x - offset) % 6;
+            if (BRid == 0) {
+              landidx = threadIdx.x;
+            }
+
+            auto [mask, numValid] = warp_mask(idx, n);
+            int laneId = threadIdx.x & 0x1f;
+            bool bBoundary = (landidx == 0) || (laneId == 0);
+
+            unsigned int mark = __ballot_sync(mask, bBoundary); // a bit-mask
+            mark = __brev(mark);
+            unsigned int interval =
+                zs::math::min(__clz(mark << (laneId + 1)), 31 - laneId);
+
+            for (int iter = 1; iter < 6; iter <<= 1) {
+              T tmp = __shfl_down_sync(mask, rdata, iter);
+              if (interval >= iter && laneId + iter < numValid)
+                rdata += tmp;
+            }
+
+            if (bBoundary)
+              atomic_add(exec_cuda, &vtemp(bTag, MRid % 3, inds[MRid / 3]),
+                         rdata);
+          });
+#endif
           auto numPE = nPE.getVal();
+#if 0
           pol(range(numPE), [execTag, tempPE = proxy<space>({}, tempPE),
                              vtemp = proxy<space>({}, vtemp), dxTag, bTag,
                              PE = proxy<space>(PE)] ZS_LAMBDA(int pei) mutable {
@@ -2468,7 +2492,58 @@ struct CodimStepping : INode {
                            temp[vi * dim + d]);
               }
           });
+#else
+          pol(range(numPE * 81), [execTag, tempPE = proxy<space>({}, tempPE),
+                                  vtemp = proxy<space>({}, vtemp), dxTag, bTag,
+                                  PE = proxy<space>(PE),
+                                  n = numPE * 81] ZS_LAMBDA(int idx) mutable {
+            constexpr int dim = 3;
+            __shared__ int offset;
+            // directly use PCG_Solve_AX9_b2 from kemeng huang
+            int Hid = idx / 81;
+            int entryId = idx % 81;
+            int MRid = entryId / 9;
+            int MCid = entryId % 9;
+            int vId = MCid / dim;
+            int axisId = MCid % dim;
+            int GRtid = idx % 9;
+
+            auto inds = PE[Hid];
+            T rdata =
+                tempPE("H", entryId, Hid) * vtemp(dxTag, axisId, inds[vId]);
+
+            if (threadIdx.x == 0)
+              offset = 9 - GRtid;
+            __syncthreads();
+
+            int BRid = (threadIdx.x - offset + 9) / 9;
+            int landidx = (threadIdx.x - offset) % 9;
+            if (BRid == 0) {
+              landidx = threadIdx.x;
+            }
+
+            auto [mask, numValid] = warp_mask(idx, n);
+            int laneId = threadIdx.x & 0x1f;
+            bool bBoundary = (landidx == 0) || (laneId == 0);
+
+            unsigned int mark = __ballot_sync(mask, bBoundary); // a bit-mask
+            mark = __brev(mark);
+            unsigned int interval =
+                zs::math::min(__clz(mark << (laneId + 1)), 31 - laneId);
+
+            for (int iter = 1; iter < 9; iter <<= 1) {
+              T tmp = __shfl_down_sync(mask, rdata, iter);
+              if (interval >= iter && laneId + iter < numValid)
+                rdata += tmp;
+            }
+
+            if (bBoundary)
+              atomic_add(exec_cuda, &vtemp(bTag, MRid % 3, inds[MRid / 3]),
+                         rdata);
+          });
+#endif
           auto numPT = nPT.getVal();
+#if 0
           pol(range(numPT), [execTag, tempPT = proxy<space>({}, tempPT),
                              vtemp = proxy<space>({}, vtemp), dxTag, bTag,
                              PT = proxy<space>(PT)] ZS_LAMBDA(int pti) mutable {
@@ -2489,7 +2564,58 @@ struct CodimStepping : INode {
                            temp[vi * dim + d]);
               }
           });
+#else
+          pol(range(numPT * 144), [execTag, tempPT = proxy<space>({}, tempPT),
+                                   vtemp = proxy<space>({}, vtemp), dxTag, bTag,
+                                   PT = proxy<space>(PT),
+                                   n = numPT * 144] ZS_LAMBDA(int idx) mutable {
+            constexpr int dim = 3;
+            __shared__ int offset;
+            // directly use PCG_Solve_AX9_b2 from kemeng huang
+            int Hid = idx / 144;
+            int entryId = idx % 144;
+            int MRid = entryId / 12;
+            int MCid = entryId % 12;
+            int vId = MCid / dim;
+            int axisId = MCid % dim;
+            int GRtid = idx % 12;
+
+            auto inds = PT[Hid];
+            T rdata =
+                tempPT("H", entryId, Hid) * vtemp(dxTag, axisId, inds[vId]);
+
+            if (threadIdx.x == 0)
+              offset = 12 - GRtid;
+            __syncthreads();
+
+            int BRid = (threadIdx.x - offset + 12) / 12;
+            int landidx = (threadIdx.x - offset) % 12;
+            if (BRid == 0) {
+              landidx = threadIdx.x;
+            }
+
+            auto [mask, numValid] = warp_mask(idx, n);
+            int laneId = threadIdx.x & 0x1f;
+            bool bBoundary = (landidx == 0) || (laneId == 0);
+
+            unsigned int mark = __ballot_sync(mask, bBoundary); // a bit-mask
+            mark = __brev(mark);
+            unsigned int interval =
+                zs::math::min(__clz(mark << (laneId + 1)), 31 - laneId);
+
+            for (int iter = 1; iter < 12; iter <<= 1) {
+              T tmp = __shfl_down_sync(mask, rdata, iter);
+              if (interval >= iter && laneId + iter < numValid)
+                rdata += tmp;
+            }
+
+            if (bBoundary)
+              atomic_add(exec_cuda, &vtemp(bTag, MRid % 3, inds[MRid / 3]),
+                         rdata);
+          });
+#endif
           auto numEE = nEE.getVal();
+#if 0
           pol(range(numEE), [execTag, tempEE = proxy<space>({}, tempEE),
                              vtemp = proxy<space>({}, vtemp), dxTag, bTag,
                              EE = proxy<space>(EE)] ZS_LAMBDA(int eei) mutable {
@@ -2510,6 +2636,56 @@ struct CodimStepping : INode {
                            temp[vi * dim + d]);
               }
           });
+#else
+          pol(range(numEE * 144), [execTag, tempEE = proxy<space>({}, tempEE),
+                                   vtemp = proxy<space>({}, vtemp), dxTag, bTag,
+                                   EE = proxy<space>(EE),
+                                   n = numEE * 144] ZS_LAMBDA(int idx) mutable {
+            constexpr int dim = 3;
+            __shared__ int offset;
+            // directly use PCG_Solve_AX9_b2 from kemeng huang
+            int Hid = idx / 144;
+            int entryId = idx % 144;
+            int MRid = entryId / 12;
+            int MCid = entryId % 12;
+            int vId = MCid / dim;
+            int axisId = MCid % dim;
+            int GRtid = idx % 12;
+
+            auto inds = EE[Hid];
+            T rdata =
+                tempEE("H", entryId, Hid) * vtemp(dxTag, axisId, inds[vId]);
+
+            if (threadIdx.x == 0)
+              offset = 12 - GRtid;
+            __syncthreads();
+
+            int BRid = (threadIdx.x - offset + 12) / 12;
+            int landidx = (threadIdx.x - offset) % 12;
+            if (BRid == 0) {
+              landidx = threadIdx.x;
+            }
+
+            auto [mask, numValid] = warp_mask(idx, n);
+            int laneId = threadIdx.x & 0x1f;
+            bool bBoundary = (landidx == 0) || (laneId == 0);
+
+            unsigned int mark = __ballot_sync(mask, bBoundary); // a bit-mask
+            mark = __brev(mark);
+            unsigned int interval =
+                zs::math::min(__clz(mark << (laneId + 1)), 31 - laneId);
+
+            for (int iter = 1; iter < 12; iter <<= 1) {
+              T tmp = __shfl_down_sync(mask, rdata, iter);
+              if (interval >= iter && laneId + iter < numValid)
+                rdata += tmp;
+            }
+
+            if (bBoundary)
+              atomic_add(exec_cuda, &vtemp(bTag, MRid % 3, inds[MRid / 3]),
+                         rdata);
+          });
+#endif
         }
 #endif
         // boundary
@@ -2543,8 +2719,8 @@ struct CodimStepping : INode {
       using namespace zs;
       constexpr auto space = execspace_e::cuda;
       if (useGD) {
+        project(cudaPol, "grad");
         precondition(cudaPol, "grad", "dir");
-        project(cudaPol, "dir");
       } else {
         // solve for A dir = grad;
         cudaPol(zs::range(numDofs),
@@ -2583,7 +2759,7 @@ struct CodimStepping : INode {
           if (residualPreconditionedNorm <= localTol)
             break;
           multiply(cudaPol, "p", "temp");
-          project(cudaPol, "temp");
+          // project(cudaPol, "temp");
 
           T alpha = zTrk / dot(cudaPol, vtemp, "temp", "p");
           cudaPol(range(numDofs), [vtemp = proxy<space>({}, vtemp),

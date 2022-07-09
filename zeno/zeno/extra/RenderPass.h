@@ -10,12 +10,12 @@ namespace zeno {
     struct RenderPassBase {
         std::string name;
         bool seen;
-        std::vector<const ResourceBase*> creates;
-        std::vector<const ResourceBase*> reads;
-        std::vector<const ResourceBase*> writes;
+        std::vector<ResourceBase const*> creates;
+        std::vector<ResourceBase const*> reads;
+        std::vector<ResourceBase const*> writes;
         std::size_t refCount;
 
-        ZENO_API RenderPassBase(const std::string& name);
+        ZENO_API RenderPassBase(std::string const &name);
         ZENO_API ~RenderPassBase();
 
         ZENO_API virtual void setup() = 0;
@@ -26,11 +26,11 @@ namespace zeno {
     struct RenderPass : RenderPassBase {
         DataType data;
 
-        ZENO_API RenderPass(const std::string& name, std::function<void(DataType&)> setupFunc, std::function<void(const DataType&)> renderFunc);
+        ZENO_API RenderPass(std::string const &name, std::function<void(DataType&)> setupFunc, std::function<void(DataType const&)> renderFunc);
         ZENO_API ~RenderPass();
 
         ZENO_API const std::function<void(DataType&)> setupFunc;
-        ZENO_API const std::function<void(const DataType&)> renderFunc;
+        ZENO_API const std::function<void(DataType const&)> renderFunc;
         ZENO_API virtual void setup() override;
         ZENO_API virtual void render() override;
     };

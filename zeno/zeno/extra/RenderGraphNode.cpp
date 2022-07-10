@@ -166,6 +166,7 @@ template <typename DataType, typename... ArgsType>
 ZENO_API RenderPass<DataType> *RenderGraph::AddRenderPass(ArgsType &&...arguments) {
     passes.emplace_back(std::make_unique<RenderPass<DataType>>(arguments...));
     auto pass = passes.back().get();
+    RenderPassBuilder builder(this, pass);
     pass->setup();
     return static_cast<RenderPass<DataType>*>(pass);
 }

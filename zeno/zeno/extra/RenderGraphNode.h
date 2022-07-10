@@ -2,11 +2,13 @@
 
 #include <zeno/extra/RenderPassNode.h>
 #include <zeno/extra/ResourceNode.h>
+#include <zeno/extra/RenderPassBuilder.h>
 #include <vector>
 
 namespace zeno {
     struct RenderPassBase;
     struct ResourceBase;
+    struct RenderPassBuilder;
 
     struct RenderStep {
         RenderPassBase* pass;

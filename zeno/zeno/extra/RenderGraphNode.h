@@ -33,4 +33,5 @@ namespace zeno {
         ZENO_API Resource<ResourceType>* AddRetainedResource(std::string const &name, ResourceType &resourceType);
 
     };
-}
+
+    }

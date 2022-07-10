@@ -8,11 +8,16 @@ ZENO_API ResourceBase::ResourceBase(std::string const &name, RenderPassBase* con
     static std::size_t id_{0};
     id = id_++;
 }
+
 ZENO_API ResourceBase::~ResourceBase() = default;
 
 template <typename ResourceType>
 ZENO_API Resource<ResourceType>::Resource(std::string const &name, RenderPassBase* const creator, ResourceType const &type)
     : ResourceBase(name, creator), type(type) {}
+
+template <typename ResourceType>
+Resource<ResourceType>::Resource(std::string const &name, ResourceType const &type)
+    : ResourceBase(name, nullptr), type(type) {}
 
 template <typename ResourceType>
 ZENO_API Resource<ResourceType>::~Resource() = default;

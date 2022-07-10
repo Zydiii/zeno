@@ -31,6 +31,7 @@ struct Resource : ResourceBase {
     std::variant<std::unique_ptr<ResourceType>, ResourceType*> resource;
 
     ZENO_API Resource(std::string const &name, RenderPassBase* const creator, ResourceType const &type);
+    ZENO_API Resource(std::string const &name, ResourceType const &type);
     ZENO_API ~Resource();
 
     ZENO_API virtual void instantiate() override;

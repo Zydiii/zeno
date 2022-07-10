@@ -6,7 +6,7 @@ ZENO_API RenderPassBuilder::RenderPassBuilder(RenderGraph* renderGraph, RenderPa
 ZENO_API RenderPassBuilder::~RenderPassBuilder() = default;
 
 template <typename ResourceType, typename TypeOfResource>
-ZENO_API ResourceType *RenderPassBuilder::create(std::string const &name, TypeOfResource const &type) {
+ResourceType *RenderPassBuilder::create(std::string const &name, TypeOfResource const &type) {
     renderGraph->resources.emplace_back(std::make_unique<ResourceType>(name, pass, type));
     const auto resource = renderGraph->resources.back().get();
     pass->creates.push_back(resource);
@@ -14,14 +14,14 @@ ZENO_API ResourceType *RenderPassBuilder::create(std::string const &name, TypeOf
 }
 
 template <typename ResourceType>
-ZENO_API ResourceType *RenderPassBuilder::read(ResourceType *resource) {
+ResourceType *RenderPassBuilder::read(ResourceType *resource) {
     resource->readers.push_back(pass);
     pass->reads.push_back(resource);
     return resource;
 }
 
 template <typename ResourceType>
-ZENO_API ResourceType *RenderPassBuilder::write(ResourceType *resource) {
+ResourceType *RenderPassBuilder::write(ResourceType *resource) {
     resource->writers.push_back(pass);
     pass->writes.push_back(resource);
     return resource;

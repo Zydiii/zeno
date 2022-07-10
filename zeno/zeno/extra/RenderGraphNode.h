@@ -9,6 +9,10 @@ namespace zeno {
     struct RenderPassBase;
     struct ResourceBase;
     struct RenderPassBuilder;
+    template<typename ResourceType>
+    struct Resource;
+    template<typename DataType>
+    struct RenderPass;
 
     struct RenderStep {
         RenderPassBase* pass;

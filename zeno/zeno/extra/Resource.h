@@ -1,9 +1,10 @@
 #pragma once
 
+#include <zeno/core/INode.h>
+#include <zeno/extra/RenderPass.h>
 #include <string>
 #include <vector>
-#include <zeno/core/INode.h>
-#include <zeno/extra/RenderPassNode.h>
+#include <array>
 
 namespace zeno {
 
@@ -28,7 +29,7 @@ struct ResourceBase {
 template<typename ResourceType>
 struct Resource : ResourceBase {
     ResourceType type;
-    std::variant<std::unique_ptr<ResourceType>, ResourceType*> resource;
+    std::variant<std::shared_ptr<ResourceType>, ResourceType*> resource;
 
     ZENO_API Resource(std::string const &name, RenderPassBase* const creator, ResourceType const &type);
     ZENO_API Resource(std::string const &name, ResourceType const &type);
@@ -37,5 +38,13 @@ struct Resource : ResourceBase {
     ZENO_API virtual void instantiate() override;
     ZENO_API virtual void release() override;
 };
+
+struct texture2D {
+    std::size_t levels;
+    std::size_t format;
+    std::array<std::size_t, 3> size;
+};
+
+using texture2DResource = zeno::Resource<texture2D>;
 
 }

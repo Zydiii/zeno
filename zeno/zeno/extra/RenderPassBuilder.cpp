@@ -7,7 +7,7 @@ ZENO_API RenderPassBuilder::~RenderPassBuilder() = default;
 
 template <typename ResourceType, typename TypeOfResource>
 ResourceType *RenderPassBuilder::create(std::string const &name, TypeOfResource const &type) {
-    renderGraph->resources.emplace_back(std::make_unique<ResourceType>(name, pass, type));
+    renderGraph->resources.emplace_back(std::make_shared<ResourceType>(name, pass, type));
     const auto resource = renderGraph->resources.back().get();
     pass->creates.push_back(resource);
     return static_cast<ResourceType*>(resource);

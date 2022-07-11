@@ -1,9 +1,9 @@
 #pragma once
 
-#include <zeno/core/INode.h>
-#include <zeno/extra/RenderPassNode.h>
-#include <zeno/extra/RenderGraphNode.h>
 #include <string>
+#include <zeno/core/INode.h>
+#include <zeno/extra/RenderGraph.h>
+#include <zeno/extra/RenderPass.h>
 
 namespace zeno {
     struct RenderPassBase;

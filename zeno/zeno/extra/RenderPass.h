@@ -1,9 +1,9 @@
 #pragma once
 
-#include <zeno/extra/RenderPassBuilder.h>
-#include <zeno/extra/ResourceNode.h>
 #include <string>
 #include <vector>
+#include <zeno/extra/RenderPassBuilder.h>
+#include <zeno/extra/Resource.h>
 
 namespace zeno {
     struct ResourceBase;
@@ -29,6 +29,7 @@ namespace zeno {
         DataType data;
 
         ZENO_API RenderPass(std::string const &name, std::function<void(DataType&, RenderPassBuilder&)> setupFunc, std::function<void(DataType const&)> renderFunc);
+        ZENO_API RenderPass(): RenderPassBase("") {}
         ZENO_API ~RenderPass();
 
         ZENO_API const std::function<void(DataType&, RenderPassBuilder&)> setupFunc;

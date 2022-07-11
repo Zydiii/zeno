@@ -1,4 +1,4 @@
-#include <zeno/extra/RenderPassNode.h>
+#include <zeno/extra/RenderPass.h>
 
 namespace zeno {
 ZENO_API RenderPassBase::RenderPassBase(std::string const &name)

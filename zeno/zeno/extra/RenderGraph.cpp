@@ -1,6 +1,6 @@
-#include <zeno/extra/RenderGraphNode.h>
-#include <stack>
 #include <fstream>
+#include <stack>
+#include <zeno/extra/RenderGraph.h>
 
 namespace zeno {
 
@@ -74,7 +74,7 @@ ZENO_API void RenderGraph::compile() {
             if(!resource->readers.empty()){
                 auto lastReader = std::find_if(passes.begin(),
                                                 passes.end(),
-                                                [&resource](std::unique_ptr<RenderPassBase> const &reader){
+                                                [&resource](std::shared_ptr<RenderPassBase> const &reader){
                                                     return reader.get() == resource->readers.back();
                                                 });
                 if(lastReader != passes.end()){
@@ -86,7 +86,7 @@ ZENO_API void RenderGraph::compile() {
             if(!resource->writers.empty()){
                 auto lastWriter = std::find_if(passes.begin(),
                                                passes.end(),
-                                               [&resource](const std::unique_ptr<RenderPassBase>& writer){
+                                               [&resource](const std::shared_ptr<RenderPassBase>& writer){
                                                    return writer.get() == resource->writers.back();
                                                });
                 if(lastWriter != passes.end()){
@@ -162,18 +162,19 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
     stream << "}";
 }
 
-template <typename DataType, typename... ArgsType>
-ZENO_API RenderPass<DataType> *RenderGraph::AddRenderPass(ArgsType &&...arguments) {
-    passes.emplace_back(std::make_unique<RenderPass<DataType>>(arguments...));
-    auto pass = passes.back().get();
-    RenderPassBuilder builder(this, pass);
-    pass->setup(builder);
-    return static_cast<RenderPass<DataType>*>(pass);
-}
+//template <typename DataType, typename... ArgsType>
+//ZENO_API RenderPass<DataType> *RenderGraph::AddRenderPass(Arguments&&... arguments) {
+//    passes.emplace_back(std::make_shared<RenderPass<DataType>>(arguments...));
+//    auto pass = passes.back().get();
+//    RenderPassBuilder builder(this, pass);
+//    pass->setup(builder);
+//    return static_cast<RenderPass<DataType>*>(pass);
+//}
+
 template <typename ResourceType>
 ZENO_API Resource<ResourceType> * RenderGraph::AddRetainedResource(const std::string &name,
                                                                   ResourceType &resourceType) {
-    resources.emplace_back(std::make_unique<Resource<ResourceType>>(name, resourceType));
+    resources.emplace_back(std::make_shared<Resource<ResourceType>>(name, resourceType));
     return static_cast<Resource<ResourceType>*>(resources.back().get());
 }
 

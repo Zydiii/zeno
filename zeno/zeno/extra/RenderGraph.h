@@ -10,9 +10,9 @@ namespace zeno {
     struct RenderPassBase;
     struct ResourceBase;
     struct RenderPassBuilder;
-    template<typename ResourceType>
+    template<class ResourceType>
     struct Resource;
-    template<typename DataType>
+    template<class DataType>
     struct RenderPass;
 
     struct RenderStep {
@@ -34,7 +34,7 @@ namespace zeno {
         ZENO_API void clear();
         ZENO_API void debugGraphviz(std::string const &path);
 
-        template<typename DataType, typename... Arguments>
+        template<class DataType, class... Arguments>
         ZENO_API RenderPass<DataType>* AddRenderPass(Arguments&&... arguments){
             passes.emplace_back(std::make_shared<RenderPass<DataType>>(arguments...));
             auto pass = passes.back().get();
@@ -50,7 +50,7 @@ namespace zeno {
             pass->setup(builder);
             return static_cast<RenderPass<DataType>*>(pass);
         };
-        template<typename ResourceType>
+        template<class ResourceType>
         ZENO_API Resource<ResourceType>* AddRetainedResource(std::string const &name, ResourceType &resourceType);
 
     };
@@ -58,7 +58,7 @@ namespace zeno {
     struct RenderGraphObject : IObjectClone<RenderGraphObject> {
         RenderGraph renderGraph;
 
-        template<typename DataType, typename... ArgsType>
+        template<class DataType, class... ArgsType>
         RenderPass<DataType>* AddRenderPass(ArgsType&&... arguments){
             return renderGraph.AddRenderPass<DataType>(arguments...);
         }

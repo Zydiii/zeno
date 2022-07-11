@@ -162,7 +162,7 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
     stream << "}";
 }
 
-//template <typename DataType, typename... ArgsType>
+//template <class DataType, class... ArgsType>
 //ZENO_API RenderPass<DataType> *RenderGraph::AddRenderPass(Arguments&&... arguments) {
 //    passes.emplace_back(std::make_shared<RenderPass<DataType>>(arguments...));
 //    auto pass = passes.back().get();
@@ -171,7 +171,7 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
 //    return static_cast<RenderPass<DataType>*>(pass);
 //}
 
-template <typename ResourceType>
+template <class ResourceType>
 ZENO_API Resource<ResourceType> * RenderGraph::AddRetainedResource(const std::string &name,
                                                                   ResourceType &resourceType) {
     resources.emplace_back(std::make_shared<Resource<ResourceType>>(name, resourceType));

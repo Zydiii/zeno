@@ -2,6 +2,7 @@
 
 #include <zeno/core/INode.h>
 #include <zeno/extra/RenderPass.h>
+#include <zeno/extra/Resource.h>
 #include <string>
 #include <vector>
 #include <array>
@@ -9,6 +10,7 @@
 namespace zeno {
 
 struct RenderPassBase;
+struct texture2D;
 
 struct ResourceBase {
     std::size_t id;
@@ -26,7 +28,7 @@ struct ResourceBase {
     ZENO_API virtual void release() = 0;
 };
 
-template<typename ResourceType>
+template<class ResourceType>
 struct Resource : ResourceBase {
     ResourceType type;
     std::variant<std::shared_ptr<ResourceType>, ResourceType*> resource;
@@ -39,12 +41,16 @@ struct Resource : ResourceBase {
     ZENO_API virtual void release() override;
 };
 
-struct texture2D {
-    std::size_t levels;
-    std::size_t format;
-    std::array<std::size_t, 3> size;
+struct TextureResource : ResourceBase {
+    std::variant<std::shared_ptr<texture2D>, texture2D*> resource;
+
+    ZENO_API TextureResource(std::string const &name, RenderPassBase* const creator);
+    ZENO_API TextureResource(std::string const &name);
+    ZENO_API ~TextureResource();
+
+    ZENO_API virtual void instantiate() override;
+    ZENO_API virtual void release() override;
 };
 
-using texture2DResource = zeno::Resource<texture2D>;
 
 }

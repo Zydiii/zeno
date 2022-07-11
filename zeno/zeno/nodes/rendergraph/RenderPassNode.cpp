@@ -1,13 +1,7 @@
 #include <zeno/zeno.h>
 #include <zeno/extra/RenderPass.h>
-#include <zeno/extra/RenderPassBuilder.h>
 
 namespace zeno{
-
-struct PassData {
-    texture2DResource* output1;
-    texture2DResource* output2;
-};
 
 struct Pass : INode{
     virtual void apply() override {
@@ -15,24 +9,23 @@ struct Pass : INode{
         printf("in pass %d \n", renderGraph->renderGraph.passes.size());
 
         auto backend = get_param<std::string>("backend");
-        if(backend == "HLSL")
-//            renderGraph->AddRenderPass<PassData>("Render Pass",
-//                                                 [&](PassData& data, RenderPassBuilder& builder)
-//                                                 {
-//                                                     data.output1 = builder.create<texture2DResource>("Resource 1", texture2D());
-//                                                     data.output2 = builder.create<texture2DResource>("Resource 2", texture2D());
-//                                                 },
-//                                                 [=](const PassData& data)
-//                                                 {
-//                                                     printf("in pass %d", data.output1->id);
-//                                                     printf("in pass %d", data.output2->id);
-//                                                 }
-//                                                 );
-            //auto pass = RenderPass<PassData>();
+        if(backend == "GLSL")
+            renderGraph->AddRenderPass<PassData>("Render Pass",
+                                                 [&](PassData& data, RenderPassBuilder& builder)
+                                                 {
+                                                     data.output1 = builder.create("Resource 1");
+                                                     data.output2 = builder.create("Resource 2");
+                                                 },
+                                                 [=](const PassData& data)
+                                                 {
+                                                     printf("in pass %d", data.output1->id);
+                                                     printf("in pass %d", data.output2->id);
+                                                 }
+                                                 );
             //renderGraph->renderGraph.passes.emplace_back(std::make_shared<RenderPass<PassData>>());
-            printf("HLSL \n");
-        else if(backend == "GLSL")
-            printf("GLSL");
+            //printf("GLSL \n");
+        else if(backend == "HLSL")
+            printf("HLSL");
 
         printf("in pass %d \n", renderGraph->renderGraph.passes.size());
 

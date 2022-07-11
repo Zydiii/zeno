@@ -7,7 +7,21 @@
 
 namespace zeno {
     struct ResourceBase;
+    struct TextureResource;
     struct RenderPassBuilder;
+
+    struct texture2D {
+        std::size_t levels;
+        std::size_t format;
+        std::array<std::size_t, 3> size;
+    };
+
+    //using texture2DResource = zeno::Resource<texture2D>;
+
+    struct PassData {
+        TextureResource* output1;
+        TextureResource* output2;
+    };
 
     struct RenderPassBase {
         std::string name;
@@ -24,7 +38,7 @@ namespace zeno {
         ZENO_API virtual void render() = 0;
     };
 
-    template<typename DataType>
+    template<class DataType>
     struct RenderPass : RenderPassBase {
         DataType data;
 
@@ -37,4 +51,6 @@ namespace zeno {
         ZENO_API virtual void setup(RenderPassBuilder& builder) override;
         ZENO_API virtual void render() override;
     };
+
+    template struct RenderPass<PassData>;
 }

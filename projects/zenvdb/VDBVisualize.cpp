@@ -1,6 +1,8 @@
 #include "zeno/types/PrimitiveObject.h"
 #include "zeno/types/StringObject.h"
+#include <mutex>
 #include <openvdb/Types.h>
+#include <thread>
 #include <zeno/NumericObject.h>
 #include <zeno/PrimitiveObject.h>
 #include <zeno/StringObject.h>
@@ -19,13 +21,14 @@ struct ParticleAsVoxels : INode{
             auto const &grid = ingrid->m_grid;
             auto inparticles = get_input<PrimitiveObject>("particles");
             auto attrName = get_input<StringObject>("Attr")->value;
+            
 
             inparticles->attr_visit(attrName, [&](auto &arr) {
             #pragma omp parallel for
                 for (int i = 0; i < arr.size(); i++) {
                     if constexpr (is_decay_same_v<decltype(arr[i]), vec3f>) {
                     } else {
-                        auto accessor = grid->getAccessor();
+                        auto accessor = grid->getUnsafeAccessor();
                         openvdb::Vec3d p(inparticles->verts[i][0], inparticles->verts[i][1], inparticles->verts[i][2]);
                         openvdb::Coord coord(grid->worldToIndex(p).x(),grid->worldToIndex(p).y(),grid->worldToIndex(p).z());
                         accessor.setValue(coord, arr[i]);
@@ -39,12 +42,13 @@ struct ParticleAsVoxels : INode{
             auto const &grid = ingrid->m_grid;
             auto inparticles = get_input<PrimitiveObject>("particles");
             auto attrName = get_input<StringObject>("Attr")->value;
+            
             inparticles->attr_visit(attrName, [&](auto &arr) {
             #pragma omp parallel for
                 for (int i = 0; i < arr.size(); i++) {
                     if constexpr (is_decay_same_v<decltype(arr[i]), vec3f>) {
 
-                        auto accessor = grid->getAccessor();
+                        auto accessor = grid->getUnsafeAccessor();
                         openvdb::Vec3d p(inparticles->verts[i][0], inparticles->verts[i][1], inparticles->verts[i][2]);
                         openvdb::Coord coord(grid->worldToIndex(p).x(),grid->worldToIndex(p).y(),grid->worldToIndex(p).z());
                         accessor.setValue(coord, openvdb::Vec3f(arr[i][0], arr[i][1], arr[i][2]));
@@ -78,14 +82,34 @@ struct VDBVoxelAsParticles : INode {
             auto const &grid = ingrid->m_grid;
 
             auto hasInactive = get_param<bool>("hasInactive");
-            tbb::concurrent_vector<vec3f> pos;
+            // tbb::concurrent_vector<vec3f> pos;
+            // wxl
+#if 1
+            using MapT = std::map<std::thread::id, std::vector<vec3f>>;
+            using IterT = typename MapT::iterator;
+            std::map<std::thread::id, std::vector<vec3f>> poses;
+            std::mutex mutex;
+#endif
+
             //tbb::concurrent_vector<float> sdf;
             auto wrangler = [&](auto &leaf, openvdb::Index leafpos) {
+                // wxl
+#if 1
+                IterT iter;
+                {
+                    std::lock_guard<std::mutex> lk(mutex);
+                    bool tag;
+                    std::tie(iter, tag) = poses.insert(std::make_pair(std::this_thread::get_id(), std::vector<vec3f>{}));
+                }
+                auto &pos_ = iter->second;
+#endif
                 for (auto iter = leaf.cbeginValueOn(); iter != leaf.cendValueOn(); ++iter) {
                     auto coord = iter.getCoord();
                     auto value = iter.getValue();
                     auto p = grid->transform().indexToWorld(coord.asVec3d());
-                    pos.emplace_back(p[0], p[1], p[2]);
+                    // pos.emplace_back(p[0], p[1], p[2]);
+                    // wxl
+                    pos_.emplace_back(p[0], p[1], p[2]);
                     //sdf.emplace_back(value);
                 }
                 if (hasInactive) {
@@ -93,7 +117,9 @@ struct VDBVoxelAsParticles : INode {
                         auto coord = iter.getCoord();
                         auto value = iter.getValue();
                         auto p = grid->transform().indexToWorld(coord.asVec3d());
-                        pos.emplace_back(p[0], p[1], p[2]);
+                        // pos.emplace_back(p[0], p[1], p[2]);
+                        // wxl
+                        pos_.emplace_back(p[0], p[1], p[2]);
                         //sdf.emplace_back(value);
                     }
                 }
@@ -101,12 +127,24 @@ struct VDBVoxelAsParticles : INode {
             openvdb::tree::LeafManager<std::decay_t<decltype(grid->tree())>> leafman(grid->tree());
             leafman.foreach(wrangler);
 
-            auto prim = std::make_shared<zeno::PrimitiveObject>();
-            prim->resize(pos.size());
-            auto &primPos = prim->add_attr<vec3f>("pos");
-            for (int i = 0; i < pos.size(); i++) {
-                primPos[i] = pos[i];
+#if 1
+            std::vector<vec3f> zspos;
+            for (const auto &[_, pos] : poses) {
+                zspos.insert(std::end(zspos), std::begin(pos), std::end(pos));
             }
+            // printf("concurrent vec of size %d, zs pos size %d\n", pos.size(), zspos.size());
+#endif
+
+            auto prim = std::make_shared<zeno::PrimitiveObject>();
+            prim->resize(zspos.size());
+            auto &primPos = prim->add_attr<vec3f>("pos");
+            // wxl
+            primPos = zspos;
+#if 0
+            for (int i = 0; i < zspos.size(); i++) {
+                primPos[i] = zspos[i];
+            }
+#endif
             set_output("primPars", std::move(prim));
         }
         else if(type == "Vec3fGrid")
@@ -115,22 +153,53 @@ struct VDBVoxelAsParticles : INode {
             auto const &grid = ingrid->m_grid;
 
             auto hasInactive = get_param<bool>("hasInactive");
-            tbb::concurrent_vector<vec3f> pos;
+            // tbb::concurrent_vector<vec3f> pos;
             //tbb::concurrent_vector<float> sdf;
+            // wxl
+#if 1
+            using MapT = std::map<std::thread::id, std::vector<vec3f>>;
+            using IterT = typename MapT::iterator;
+            std::map<std::thread::id, std::vector<vec3f>> poses;
+            std::mutex mutex;
+#endif
             auto wrangler = [&](auto &leaf, openvdb::Index leafpos) {
+                // wxl
+#if 1
+                IterT iter;
+                {
+                    std::lock_guard<std::mutex> lk(mutex);
+                    bool tag;
+                    std::tie(iter, tag) = poses.insert(std::make_pair(std::this_thread::get_id(), std::vector<vec3f>{}));
+                }
+                auto &pos_ = iter->second;
+#endif
                 for (auto iter = leaf.cbeginValueOn(); iter != leaf.cendValueOn(); ++iter) {
                     auto coord = iter.getCoord();
                     auto value = iter.getValue();
-                    auto p = grid->transform().indexToWorld(coord.asVec3d());
-                    pos.emplace_back(p[0], p[1], p[2]);
+                    auto p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0.5, 0, 0));
+                    // pos.emplace_back(p[0], p[1], p[2]);
+                    pos_.emplace_back(p[0], p[1], p[2]);
+                    p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0, 0.5, 0));
+                    // pos.emplace_back(p[0], p[1], p[2]);
+                    pos_.emplace_back(p[0], p[1], p[2]);
+                    p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0, 0, 0.5));
+                    // pos.emplace_back(p[0], p[1], p[2]);
+                    pos_.emplace_back(p[0], p[1], p[2]);
                     //sdf.emplace_back(value);
                 }
                 if (hasInactive) {
                     for (auto iter = leaf.cbeginValueOff(); iter != leaf.cendValueOff(); ++iter) {
                         auto coord = iter.getCoord();
                         auto value = iter.getValue();
-                        auto p = grid->transform().indexToWorld(coord.asVec3d());
-                        pos.emplace_back(p[0], p[1], p[2]);
+                        auto p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0.5, 0, 0));
+                        // pos.emplace_back(p[0], p[1], p[2]);
+                        pos_.emplace_back(p[0], p[1], p[2]);
+                        p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0, 0.5, 0));
+                        // pos.emplace_back(p[0], p[1], p[2]);
+                        pos_.emplace_back(p[0], p[1], p[2]);
+                        p = grid->transform().indexToWorld(coord.asVec3d() - openvdb::Vec3d(0, 0, 0.5));
+                        // pos.emplace_back(p[0], p[1], p[2]);
+                        pos_.emplace_back(p[0], p[1], p[2]);
                         //sdf.emplace_back(value);
                     }
                 }
@@ -138,12 +207,24 @@ struct VDBVoxelAsParticles : INode {
             openvdb::tree::LeafManager<std::decay_t<decltype(grid->tree())>> leafman(grid->tree());
             leafman.foreach(wrangler);
 
+#if 1
+            std::vector<vec3f> zspos;
+            for (const auto &[_, pos] : poses) {
+                zspos.insert(std::end(zspos), std::begin(pos), std::end(pos));
+            }
+            // printf("concurrent vec of size %d, zs pos size %d\n", pos.size(), zspos.size());
+#endif
+
             auto prim = std::make_shared<zeno::PrimitiveObject>();
-            prim->resize(pos.size());
+            prim->resize(zspos.size());
             auto &primPos = prim->add_attr<vec3f>("pos");
+            // wxl
+            primPos = zspos;
+#if 0
             for (int i = 0; i < pos.size(); i++) {
                 primPos[i] = pos[i];
             }
+#endif
             set_output("primPars", std::move(prim));
         }
     }

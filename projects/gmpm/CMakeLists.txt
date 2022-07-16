@@ -41,6 +41,7 @@ target_sources(zeno_zsfluid PRIVATE
   volume/VolumeTopology.cu
   volume/VolumeOperator.cu
   volume/Transfer.cu
+  volume/Conversion.cu
 )
 set_source_files_properties(volume/VolumeOperator.cu volume/Transfer.cu PROPERTIES  LANGUAGE CUDA)
 target_link_libraries(zeno_zsfluid PRIVATE zshelper)
@@ -128,7 +129,7 @@ add_library(zeno_zsfem SHARED)
 target_sources(zeno_zsfem PRIVATE
   fem/BoundaryCondition.cu
   fem/Collisions.cu
-  fem/TimeStepping.cu
+  # fem/TimeStepping.cu
   fem/Check.cu
   fem/Generation.cpp
   fem/test.cpp
@@ -164,7 +165,9 @@ target_link_libraries(zeno_zsfem PRIVATE zshelper)
 
 add_library(zeno_geometry SHARED)
 target_sources(zeno_geometry PRIVATE
+  geometry/file_parser/read_vtk_mesh.hpp
   geometry/linear_system/mfcg.hpp
+  geometry/linear_system/active_set.hpp
   geometry/kernel/laplace_matrix.hpp
   geometry/kernel/gradient_field.hpp
   geometry/kernel/bary_centric_weights.hpp
@@ -174,6 +177,7 @@ target_sources(zeno_geometry PRIVATE
   geometry/Skinning.cu
   geometry/BaryCentricInterpolator.cu
   geometry/BiharmonicBoundedWeight.cu
+  geometry/MeshIO.cu
 )
 
 if (${ZS_ENABLE_CUDA})

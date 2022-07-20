@@ -11,7 +11,7 @@ struct MakeResource : INode {
         auto mtl = get_input<zeno::MaterialObject>("mtl");
         auto name = get_param<std::string>("name");
         auto geoResource = std::make_shared<GeoResource>(name, prim, mtl);
-        std::cout << "Resource " << geoResource->name << " with id " << geoResource->id << " hast mtl " << geoResource->resourceData.mtl->mtlidkey << " has prim "  << geoResource->resourceData.prim->verts.size() << std::endl;
+        std::cout << "Resource " << geoResource->name << " with id " << geoResource->id << " hast mtl " << geoResource->resourceData.mtl->mtlidkey << " has prim "  << geoResource->resourceData.prim << std::endl;
         auto test = std::make_shared<zeno::NumericObject>(geoResource->id);
         set_output("resource", std::move(geoResource));
         set_output("id", std::move(test));

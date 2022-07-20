@@ -3,11 +3,13 @@
 #include <zeno/core/IObject.h>
 #include <zeno/extra/RenderPass.h>
 #include <zeno/extra/Resource.h>
+#include <zeno/extra/RenderPassBuilder.h>
 #include <vector>
 
 namespace zeno {
     struct RenderPassBase;
     struct ResourceBase;
+    struct RenderPassBuilder;
 
     struct RenderStep {
         RenderPassBase* pass;
@@ -33,18 +35,30 @@ namespace zeno {
     };
 
     struct RenderGraphObject : IObjectClone<RenderGraphObject> {
-        RenderGraph renderGraph;
+        std::shared_ptr<RenderGraph> renderGraph;
+
+        RenderGraphObject(){
+            renderGraph = std::make_shared<RenderGraph>();
+        }
 
         void AddRenderPass(std::shared_ptr<RenderPassBase> pass){
-            return renderGraph.AddRenderPass(pass);
+            renderGraph->AddRenderPass(pass);
+        }
+
+        void AddRetainedResource(std::shared_ptr<ResourceBase> resource){
+            renderGraph->AddRetainedResource(resource);
         }
 
         void compile(){
-            renderGraph.compile();
+            renderGraph->compile();
         }
 
         void execute(){
-            renderGraph.execute();
+            renderGraph->execute();
+        }
+
+        void debug(){
+            renderGraph->debugGraphviz("test.gv");
         }
     };
 

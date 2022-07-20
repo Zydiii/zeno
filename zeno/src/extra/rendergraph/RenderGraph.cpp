@@ -11,11 +11,14 @@ ZENO_API void RenderGraph::compile() {
     // counting ref count
     for(auto &pass : passes)
         pass->refCount = pass->creates.size() + pass->writes.size();
+    for(auto &pass : passes)
+        std::cout << "pass " << pass->id << " has " << pass->refCount << std::endl;
     std::stack<ResourceBase*> unreferencedResources;
     for(auto &resource : resources){
         resource->refCount = resource->readers.size();
         if(resource->refCount == 0)
             unreferencedResources.push(resource.get());
+        std::cout << "resource " << resource << "has readers " << resource->refCount << std::endl;
     }
 
     // delete unreferenced resource
@@ -55,8 +58,8 @@ ZENO_API void RenderGraph::compile() {
     // compute timeline
     timeline.clear();
     for(auto &pass : passes){
-        if(pass->refCount == 0)
-            continue;
+//        if(pass->refCount == 0)
+//            continue;
 
         std::vector<ResourceBase*> instantiatedResource, releasedResource;
         for(auto resource : pass->creates){
@@ -105,22 +108,26 @@ ZENO_API void RenderGraph::clear() {
 }
 
 ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
+    std::cout << 100 << std::endl;
     std::ofstream stream(path);
     stream << "digraph framegraph \n{\n";
     stream << "rankdir = LR\n";
     stream << "bgcolor = white\n\n";
     stream << "node [shape=rectangle, fontname=\"Times-Roman\", fontsize=12]\n\n";
 
+    std::cout << 100 << std::endl;
     // render pass
     for (auto& pass : passes)
-        stream << "\"" << pass->name << "\" [label=\"" << pass->name << "\\nRefs: " << pass->refCount << "\", style=filled, fillcolor=orange]\n";
+        stream << "\"" << pass->name << "\" [label=\"" << pass->name << "\\nRefs: " << pass->refCount << "\\nID: " << pass->id << "\", style=filled, fillcolor=orange]\n";
     stream << "\n";
 
+    std::cout << 100 << std::endl;
     // resource
     for (auto& resource : resources)
         stream << "\"" << resource->name << "\" [label=\"" << resource->name << "\\nRefs: " << resource->refCount << "\\nID: " << resource->id << "\", style=filled, fillcolor=skyblue4" << "]\n";
     stream << "\n";
 
+    std::cout << 100 << std::endl;
     for (auto& pass : passes)
     {
         // create
@@ -137,6 +144,7 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
     }
     stream << "\n";
 
+    std::cout << 100 << std::endl;
     // read
     for (auto& resource : resources)
     {

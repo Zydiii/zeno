@@ -1,29 +1,35 @@
-#include <zeno/zeno.h>
+#include <vector>
 #include <zeno/core/INode.h>
 #include <zeno/core/IObject.h>
-#include <zeno/types/ListObject.h>
+#include <zeno/extra/RenderGraph.h>
 #include <zeno/extra/RenderPass.h>
-#include <vector>
+#include <zeno/types/ListObject.h>
+#include <zeno/zeno.h>
 
 namespace zeno {
 struct MakeRenderPass : INode {
     virtual void apply() override {
-        auto list = get_input<zeno::ListObject>("inputs")->getRaw<ResourceBase>();
+        auto list = get_input<zeno::ListObject>("inputs")->get<ResourceBase>();
         auto name = get_param<std::string>("name");
         auto pass = std::make_shared<RenderPassBase>(name);
         //std::cout << typeid(list).name() << std::endl;
         pass->reads = list;
+        auto renderGraph = get_input<zeno::RenderGraphObject>("RenderGraph");
+        renderGraph->AddRenderPass(pass);
         std::cout << "RenderPass " << pass->name << " has " << pass->reads.size() << " inputs " << std::endl;
-        set_output("pass", std::move(pass));
+        set_output("RenderGraph", std::move(renderGraph));
+        //set_output("pass", std::move(pass));
     }
 };
 
 ZENDEFNODE(MakeRenderPass, {
                              {
-                                 {"ListObject", "inputs"}                          
+                                 {"ListObject", "inputs"},
+                                   {"RenderGraphObject", "RenderGraph"}
                              },
                              {
-                                 {"RenderPassBase", "pass"}
+                                 //{"RenderPassBase", "pass"},
+                                   {"RenderGraphObject", "RenderGraph"}
                              },
                              {
                                  {"string", "name", "renderpass"}

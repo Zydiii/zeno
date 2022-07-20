@@ -3,6 +3,8 @@
 #include <zeno/core/IObject.h>
 #include <zeno/types/PrimitiveObject.h>
 #include <zeno/types/MaterialObject.h>
+#include <zeno/extra/RenderPass.h>
+#include <vector>
 
 namespace zeno {
 struct ResourceBase : IObject{
@@ -11,6 +13,8 @@ struct ResourceBase : IObject{
     int refCount;
 
     const int creator;
+    std::vector<int> readers;
+    std::vector<int> writers;
 
     ZENO_API ResourceBase(std::string const &name, int const &creator);
     ZENO_API virtual ~ResourceBase();

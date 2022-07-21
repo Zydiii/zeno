@@ -7,16 +7,14 @@
  std::shared_ptr<RenderGraphObject> decodeRenderGraphObject(const char *it);
  std::shared_ptr<RenderGraphObject> decodeRenderGraphObject(const char *it) {
      auto obj = std::make_shared<RenderGraphObject>();
-     std::size_t id = *(std::size_t *)it;
-     it += sizeof(id);
-     obj->renderGraph->id = id;
+     obj->deserialize(it);
      return obj;
  }
 
  bool encodeRenderGraphObject(RenderGraphObject const *obj, std::back_insert_iterator<std::vector<char>> it);
  bool encodeRenderGraphObject(RenderGraphObject const *obj, std::back_insert_iterator<std::vector<char>> it) {
-     auto id = obj->renderGraph->id;
-     it = std::copy_n((char const *)&id, sizeof(id), it);
+     auto rendergraph = obj->serialize();
+     it = std::copy(rendergraph.begin(), rendergraph.end(), it);
      return true;
  }
  }

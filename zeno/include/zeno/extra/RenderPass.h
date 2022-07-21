@@ -17,5 +17,9 @@ struct RenderPassBase : IObjectClone<RenderPassBase> {
 
     ZENO_API RenderPassBase(std::string const &name);
     ZENO_API virtual ~RenderPassBase();
+
+    ZENO_API size_t serializeSize() const;
+    ZENO_API std::vector<char> serialize() const;
+    ZENO_API void serialize(char *str) const;
 };
 }

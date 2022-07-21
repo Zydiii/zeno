@@ -12,6 +12,7 @@
 #include <zeno/utils/log.h>
 #include <algorithm>
 #include <cstring>
+#include <zeno/extra/RenderGraph.h>
 
 namespace zeno {
 

@@ -4,7 +4,11 @@
 
 namespace zeno {
 
-ZENO_API RenderGraph::RenderGraph() = default;
+ZENO_API RenderGraph::RenderGraph()
+{
+    static int id_{10};
+    id = id_++;
+}
 ZENO_API RenderGraph::~RenderGraph() = default;
 
 ZENO_API void RenderGraph::compile() {
@@ -108,26 +112,22 @@ ZENO_API void RenderGraph::clear() {
 }
 
 ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
-    std::cout << 100 << std::endl;
     std::ofstream stream(path);
     stream << "digraph framegraph \n{\n";
     stream << "rankdir = LR\n";
     stream << "bgcolor = white\n\n";
     stream << "node [shape=rectangle, fontname=\"Times-Roman\", fontsize=12]\n\n";
 
-    std::cout << 100 << std::endl;
     // render pass
     for (auto& pass : passes)
         stream << "\"" << pass->name << "\" [label=\"" << pass->name << "\\nRefs: " << pass->refCount << "\\nID: " << pass->id << "\", style=filled, fillcolor=orange]\n";
     stream << "\n";
 
-    std::cout << 100 << std::endl;
     // resource
     for (auto& resource : resources)
         stream << "\"" << resource->name << "\" [label=\"" << resource->name << "\\nRefs: " << resource->refCount << "\\nID: " << resource->id << "\", style=filled, fillcolor=skyblue4" << "]\n";
     stream << "\n";
 
-    std::cout << 100 << std::endl;
     for (auto& pass : passes)
     {
         // create
@@ -144,7 +144,6 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
     }
     stream << "\n";
 
-    std::cout << 100 << std::endl;
     // read
     for (auto& resource : resources)
     {

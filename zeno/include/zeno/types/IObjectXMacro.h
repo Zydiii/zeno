@@ -8,4 +8,5 @@
     PER(LightObject, __VA_ARGS__) \
     PER(MaterialObject, __VA_ARGS__) \
     PER(ListObject, __VA_ARGS__) \
-    PER(DummyObject, __VA_ARGS__)
+    PER(DummyObject, __VA_ARGS__) \
+    PER(RenderGraphObject, __VA_ARGS__)

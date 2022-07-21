@@ -11,6 +11,7 @@
 #include <zeno/utils/cppdemangle.h>
 #include <zeno/utils/log.h>
 #include <zenovis/bate/IGraphic.h>
+#include <zeno/extra/RenderGraph.h>
 
 namespace zenovis {
 

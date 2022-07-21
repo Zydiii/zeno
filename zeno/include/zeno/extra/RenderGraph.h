@@ -18,6 +18,7 @@ namespace zeno {
     };
 
     struct RenderGraph {
+        std::size_t id;
         std::vector<std::shared_ptr<RenderPassBase>> passes;
         std::vector<std::shared_ptr<ResourceBase>> resources;
         std::vector<RenderStep> timeline;
@@ -60,6 +61,8 @@ namespace zeno {
         void debug(){
             renderGraph->debugGraphviz("test.gv");
         }
+
+
     };
 
     }

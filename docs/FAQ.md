@@ -85,6 +85,16 @@ Both `-DCMAKE_BUILD_TYPE=Release` and `--config Release` are required.
 
 > If the second step (`--config Release`) doesn't work, you need to open the `zeno.sln` in Visual Studio, and **select the `Release` configuration in the UI**, and click `Build`.
 
+### Q
+
+The compiler complains about encoding errors (GB2312 vs UTF-8).
+
+### A
+
+This is because Windows (Chinese edition) use GB2312 by default, but we use UTF-8 (for writing Chinese comments) in our code.
+
+Please either add `add_compile_options("/utf-8")` at the head of `CMakeLists.txt` to make MSVC happy, or delete these useless comments that contains UTF-8 characters (related article: https://blog.csdn.net/u014671962/article/details/101525645).
+
 ## WSL problem
 
 ### Q
@@ -172,6 +182,14 @@ sudo strip --remove-section=.note.ABI-tag /usr/lib64/libQt5Core.so.5
 ```
 
 Reference: https://askubuntu.com/questions/1034313/ubuntu-18-4-libqt5core-so-5-cannot-open-shared-object-file-no-such-file-or-dir
+
+### Q
+
+Any error around TBB.
+
+### A
+
+Consider uninstall OneAPI (`/opt/intel/oneapi`), OpenVDB requires the old version of TBB, not the stupid OneTBB.
 
 ## CUDA problem
 

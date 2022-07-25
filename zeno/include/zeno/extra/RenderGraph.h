@@ -56,6 +56,14 @@ namespace zeno {
             renderGraph->AddRetainedResource(resource);
         }
 
+        size_t getResourceSize(){
+            return renderGraph->resources.size();
+        }
+
+        size_t getRenderPassSize(){
+            return renderGraph->passes.size();
+        }
+
         void compile(){
             renderGraph->compile();
         }

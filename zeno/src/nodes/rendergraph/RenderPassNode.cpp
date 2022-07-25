@@ -19,7 +19,8 @@ struct MakeRenderPass : INode {
         RenderPassBuilder builder(renderGraph->renderGraph, renderGraph->renderGraph->passes.size() - 1);
         for(auto &resource : list)
         {
-            renderGraph->AddRetainedResource(resource);
+            if(renderGraph->getResourceSize() <= resource->id)
+              renderGraph->AddRetainedResource(resource);
             builder.read(resource);
         }
         std::cout << "RenderPass " << pass->name << " has " << pass->reads.size() << " inputs " << std::endl;

@@ -110,9 +110,77 @@ ZENO_API void RenderPassBase::serialize(char *str) const {
 }
 
 ZENO_API RenderPassBase RenderPassBase::deserialize(std::vector<char> const &str) {
-    RenderPassBase renderPassBase("renderpass");
+    RenderPassBase renderPass("renderpass");
 
-    return renderPassBase;
+    size_t i{0};
+
+    size_t nameLen;
+    memcpy(&nameLen, str.data() + i, sizeof(nameLen));
+    i += sizeof(nameLen);
+    renderPass.name = std::string{str.data() + i, nameLen};
+    i += nameLen;
+
+    size_t createsLen;
+    memcpy(&createsLen, str.data() + i, sizeof(createsLen));
+    i += sizeof(createsLen);
+    renderPass.creates.resize(createsLen);
+    for(size_t j{0}; j < createsLen; ++j){
+        size_t createStrLen;
+        memcpy(&createStrLen, str.data() + i, sizeof(createStrLen));
+        i += sizeof(createStrLen);
+
+        std::vector<char> createStr;
+        createStr.resize(createStrLen);
+        memcpy(createStr.data(), str.data() + i, createStrLen);
+        i += createStrLen;
+
+        auto create = std::make_shared<ResourceBase>(GeoResource::deserialize(createStr));
+        renderPass.creates[j] = create;
+    }
+
+    size_t readsLen;
+    memcpy(&readsLen, str.data() + i, sizeof(readsLen));
+    i += sizeof(readsLen);
+    renderPass.reads.resize(readsLen);
+    for(size_t j{0}; j < readsLen; ++j){
+        size_t readStrLen;
+        memcpy(&readStrLen, str.data() + i, sizeof(readStrLen));
+        i += sizeof(readStrLen);
+
+        std::vector<char> readStr;
+        readStr.resize(readStrLen);
+        memcpy(readStr.data(), str.data() + i, readStrLen);
+        i += readStrLen;
+
+        auto read = std::make_shared<ResourceBase>(GeoResource::deserialize(readStr));
+        renderPass.reads[j] = read;
+    }
+
+    size_t writesLen;
+    memcpy(&writesLen, str.data() + i, sizeof(writesLen));
+    i += sizeof(writesLen);
+    renderPass.writes.resize(writesLen);
+    for(size_t j{0}; j < writesLen; ++j){
+        size_t writeStrLen;
+        memcpy(&writeStrLen, str.data() + i, sizeof(writeStrLen));
+        i += sizeof(writeStrLen);
+
+        std::vector<char> writeStr;
+        writeStr.resize(writeStrLen);
+        memcpy(writeStr.data(), str.data() + i, writeStrLen);
+        i += writeStrLen;
+
+        auto write = std::make_shared<ResourceBase>(GeoResource::deserialize(writeStr));
+        renderPass.writes[j] = write;
+    }
+
+    memcpy(&renderPass.refCount, str.data() + i, sizeof(renderPass.refCount));
+    i += sizeof(renderPass.refCount);
+
+    memcpy(&renderPass.id, str.data() + i, sizeof(renderPass.id));
+    i += sizeof(renderPass.id);
+
+    return renderPass;
 }
 
 }

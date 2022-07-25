@@ -213,8 +213,6 @@ ZENO_API void RenderGraph::serialize(char *str) const {
 
         memcpy(str + i, resourceStr.data(), resourceStrSize);
         i += resourceStrSize;
-
-        std::cout << "serialize resource with size " << resourceStrSize << std::endl;
     }
 
     auto passesLen{passes.size()};

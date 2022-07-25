@@ -27,31 +27,21 @@ ZENO_API size_t GeoResource::serializeSize() const {
 
     size += sizeof(id);
 
-    std::cout << "size " << size << std::endl;
-
     auto nameLen{name.size()};
     size += sizeof(nameLen);
     size += nameLen;
-
-    std::cout << "size " << size << std::endl;
-
 
     size += sizeof(refCount);
 
     size += sizeof(creator);
 
-    std::cout << "size " << size << std::endl;
-
-
     auto readersLen{readers.size()};
     size += sizeof(readersLen);
-    std::cout << "size " << size << std::endl;
 
     for(auto &reader : readers)
     {
         size += sizeof(reader);
     }
-    std::cout << "size " << size << std::endl;
 
     auto writersLen{writers.size()};
     size += sizeof(writersLen);
@@ -59,8 +49,6 @@ ZENO_API size_t GeoResource::serializeSize() const {
     {
         size += sizeof(writer);
     }
-
-    std::cout << "size " << size << std::endl;
 
     return size;
 }

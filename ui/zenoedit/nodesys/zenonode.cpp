@@ -762,6 +762,7 @@ void ZenoNode::onSocketsUpdate(bool bInput)
                 ZenoParamWidget* pSocketControl = initSocketWidget(inSocket, pSocketItem);
                 if (pSocketControl) {
                     pMiniLayout->addItem(pSocketControl);
+                    pSocketControl->setVisible(inSocket.linkIndice.isEmpty());
                 }
 
                 _socket_ctrl socket_ctrl;
@@ -1047,6 +1048,7 @@ ZenoParamWidget* ZenoNode::initSocketWidget(const INPUT_SOCKET inSocket, ZenoTex
         default:
             return nullptr;
     }
+    return nullptr;
 }
 
 void ZenoNode::updateSocketWidget(const INPUT_SOCKET inSocket)
@@ -1161,6 +1163,8 @@ void ZenoNode::onSocketLinkChanged(const QString& sockName, bool bInput, bool bA
         {
             m_inSockets[sockName].socket->toggle(bAdded);
             m_inSockets[sockName].socket->setSockStatus(bAdded ? ZenoSocketItem::STATUS_CONNECTED : ZenoSocketItem::STATUS_NOCONN);
+            if (m_inSockets[sockName].socket_control)
+                m_inSockets[sockName].socket_control->setVisible(!bAdded);
         }
 	}
 	else
@@ -1316,6 +1320,7 @@ QSizeF ZenoNode::sizeHint(Qt::SizeHint which, const QSizeF &constraint) const
 void ZenoNode::markError(bool isError)
 {
     m_bError = isError;
+    ZASSERT_EXIT(m_headerWidget);
     if (m_bError)
         m_headerWidget->setColors(false, QColor(200, 84, 79), QColor(), QColor());
     else

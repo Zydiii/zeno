@@ -9,20 +9,21 @@
 
 namespace zeno {
 struct ResourceBase : IObject{
-    int id;
+    std::size_t id;
     std::string name;
-    int refCount;
+    std::size_t refCount;
 
-    const int creator;
-    std::vector<int> readers;
-    std::vector<int> writers;
+    std::size_t creator;
+    std::vector<std::size_t> readers;
+    std::vector<std::size_t> writers;
 
-    ZENO_API ResourceBase(std::string const &name, int const &creator);
+    ZENO_API ResourceBase(std::string const &name, std::size_t const &creator);
     ZENO_API virtual ~ResourceBase();
 
     ZENO_API virtual size_t serializeSize() const {return 0;}
     ZENO_API virtual std::vector<char> serialize() const {return std::vector<char>();}
     ZENO_API virtual void serialize(char *str) const {}
+    ZENO_API static ResourceBase deserialize(std::vector<char> const &str) {return ResourceBase("", 0);}
 };
 
 struct GeoResourceDataType {
@@ -45,7 +46,7 @@ struct GeoResourceDataType {
 struct GeoResource : ResourceBase {
     GeoResourceDataType resourceData;
 
-    ZENO_API GeoResource(std::string const &name, int const creator);
+    ZENO_API GeoResource(std::string const &name, std::size_t const creator);
     ZENO_API GeoResource(std::string const &name, std::shared_ptr<PrimitiveObject> const &prim, std::shared_ptr<MaterialObject> const &mtl);
     ZENO_API GeoResource(std::string const &name);
     ZENO_API ~GeoResource();
@@ -53,6 +54,7 @@ struct GeoResource : ResourceBase {
     ZENO_API size_t serializeSize() const override;
     ZENO_API std::vector<char> serialize() const override;
     ZENO_API void serialize(char *str) const override;
+    ZENO_API static ResourceBase deserialize(std::vector<char> const &str);
 };
 
 

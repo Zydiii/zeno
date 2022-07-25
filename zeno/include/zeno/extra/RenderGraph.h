@@ -19,8 +19,8 @@ namespace zeno {
 
     struct RenderGraph {
         std::size_t id;
-        std::vector<std::shared_ptr<RenderPassBase>> passes;
         std::vector<std::shared_ptr<ResourceBase>> resources;
+        std::vector<std::shared_ptr<RenderPassBase>> passes;
         std::vector<RenderStep> timeline;
 
         ZENO_API RenderGraph();
@@ -37,6 +37,8 @@ namespace zeno {
         ZENO_API size_t serializeSize() const;
         ZENO_API std::vector<char> serialize() const;
         ZENO_API void serialize(char *str) const;
+        ZENO_API void deserialize(const char *str);
+        ZENO_API static RenderGraph deserialize(std::vector<char> const &str);
     };
 
     struct RenderGraphObject : IObjectClone<RenderGraphObject> {
@@ -81,8 +83,8 @@ namespace zeno {
             renderGraph->serialize(str);
         }
 
-        void deserialize(const char *str) const{
-
+        void deserialize(const char *str){
+            renderGraph->deserialize(str);
         }
     };
 

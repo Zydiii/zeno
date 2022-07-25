@@ -77,7 +77,7 @@ ZENO_API void RenderGraph::compile() {
         reads_writes.insert(reads_writes.end(), pass->writes.begin(), pass->writes.end());
         for(auto resource : reads_writes){
             auto valid = false;
-            int lastIndex;
+            size_t lastIndex;
             if(!resource->readers.empty() && resource->readers.back() < passes.size()){
                 valid = true;
                 lastIndex = resource->readers.back();
@@ -168,15 +168,6 @@ ZENO_API size_t RenderGraph::serializeSize() const {
 
     size += sizeof(id);
 
-    auto passesLen(passes.size());
-    size += sizeof(passesLen);
-    for(auto &pass : passes)
-    {
-        auto passStrSize = pass->serializeSize();
-        size += sizeof(passStrSize);
-        size += passStrSize;
-    }
-
     auto resourcesLen(resources.size());
     size += sizeof(resourcesLen);
     for(auto &resource : resources)
@@ -184,6 +175,15 @@ ZENO_API size_t RenderGraph::serializeSize() const {
         auto resourceStrSize = resource->serializeSize();
         size += sizeof(resourceStrSize);
         size += resourceStrSize;
+    }
+
+    auto passesLen(passes.size());
+    size += sizeof(passesLen);
+    for(auto &pass : passes)
+    {
+        auto passStrSize = pass->serializeSize();
+        size += sizeof(passStrSize);
+        size += passStrSize;
     }
 
     return size;
@@ -202,21 +202,81 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     memcpy(str + i, &id, sizeof(id));
     i += sizeof(id);
 
-    auto passesLen{passes.size()};
-    memcpy(str + i, &passesLen, sizeof(passesLen));
-    i += sizeof(passesLen);
-    for(const auto &pass : passes){
-        memcpy(str + i, &pass, sizeof(pass));
-        i += sizeof(pass);
-    }
-
     auto resourcesLen{resources.size()};
     memcpy(str + i, &resourcesLen, sizeof(resourcesLen));
     i += sizeof(resourcesLen);
     for(const auto &resource : resources){
-        memcpy(str + i, &resource, sizeof(resource));
-        i += sizeof(resource);
+        auto resourceStr = resource->serialize();
+        auto resourceStrSize = resourceStr.size();
+        memcpy(str + i, &resourceStrSize, sizeof(resourceStrSize));
+        i += sizeof(resourceStrSize);
+
+        memcpy(str + i, resourceStr.data(), resourceStrSize);
+        i += resourceStrSize;
+
+        std::cout << "serialize resource with size " << resourceStrSize << std::endl;
+    }
+
+    auto passesLen{passes.size()};
+    memcpy(str + i, &passesLen, sizeof(passesLen));
+    i += sizeof(passesLen);
+    for(const auto &pass : passes){
+        auto passStr = pass->serialize();
+        auto passStrSize = passStr.size();
+        memcpy(str + i, &passStrSize, sizeof(passStrSize));
+        i += sizeof(passStrSize);
+
+        memcpy(str + i, passStr.data(), passStrSize);
+        i += passStrSize;
     }
 }
 
+ZENO_API void RenderGraph::deserialize(const char *str) {
+    size_t i{0};
+
+    memcpy(&id, str + i, sizeof(id));
+    i += sizeof(id);
+
+    size_t resourcesLen;
+    memcpy(&resourcesLen, str + i, sizeof(resourcesLen));
+    i += sizeof(resourcesLen);
+    this->resources.resize(resourcesLen);
+    for(size_t j{0}; j < resourcesLen; ++j){
+        size_t resourceLen;
+        memcpy(&resourceLen, str + i, sizeof(resourceLen));
+        i += sizeof(resourceLen);
+
+        std::vector<char> resourceStr;
+        resourceStr.resize(resourceLen);
+        memcpy(resourceStr.data(), str + i, resourceLen);
+        i += resourceLen;
+
+        auto resource = std::make_shared<ResourceBase>(GeoResource::deserialize(resourceStr));
+        this->resources[j] = resource;
+    }
+
+    size_t passesLen;
+    memcpy(&passesLen, str + i, sizeof(passesLen));
+    i += sizeof(passesLen);
+    this->passes.resize(passesLen);
+    for(size_t j{0}; j < passesLen; ++j){
+        size_t passLen;
+        memcpy(&passLen, str + i, sizeof(passLen));
+        i += sizeof(passLen);
+
+        std::vector<char> passStr;
+        passStr.resize(passLen);
+        memcpy(passStr.data(), str + i, passLen);
+        i += passLen;
+
+        auto pass = std::make_shared<RenderPassBase>(RenderPassBase::deserialize(passStr));
+        this->passes[j] = pass;
+    }
+}
+
+ZENO_API RenderGraph RenderGraph::deserialize(const std::vector<char> &str) {
+    RenderGraph renderGraph;
+    renderGraph.deserialize(str.data());
+    return renderGraph;
+}
 }

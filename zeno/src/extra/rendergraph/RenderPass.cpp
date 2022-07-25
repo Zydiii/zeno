@@ -108,4 +108,11 @@ ZENO_API void RenderPassBase::serialize(char *str) const {
     memcpy(str + i, &id, sizeof(id));
     i += sizeof(id);
 }
+
+ZENO_API RenderPassBase RenderPassBase::deserialize(std::vector<char> const &str) {
+    RenderPassBase renderPassBase("renderpass");
+
+    return renderPassBase;
+}
+
 }

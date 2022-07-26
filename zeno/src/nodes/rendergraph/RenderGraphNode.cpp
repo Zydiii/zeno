@@ -26,7 +26,7 @@ struct RenderGraphFinalize : INode{
         auto renderGraph = get_input<zeno::RenderGraphObject>("RenderGraph");
         renderGraph->compile();
         //printf("in finalize %d \n", renderGraph->renderGraph->timeline.size());
-        renderGraph->debug();
+        //renderGraph->debug();
         set_output("RenderGraph", std::move(renderGraph));
     }
 

@@ -8,7 +8,6 @@
 #include <zeno/utils/log.h>
 #include <zenovis/bate/IGraphic.h>
 #include <zenovis/Scene.h>
-#include <iostream>
 
 namespace zenovis {
 

@@ -172,7 +172,8 @@ ZENO_API size_t RenderGraph::serializeSize() const {
     size += sizeof(resourcesLen);
     for(auto &resource : resources)
     {
-        auto resourceStrSize = resource->serializeSize();
+        auto resourceStrSize = resource->actualSerializeSize();
+
         size += sizeof(resourceStrSize);
         size += resourceStrSize;
     }
@@ -205,15 +206,21 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     auto resourcesLen{resources.size()};
     memcpy(str + i, &resourcesLen, sizeof(resourcesLen));
     i += sizeof(resourcesLen);
+
     for(const auto &resource : resources){
         auto resourceStr = resource->serialize();
         auto resourceStrSize = resourceStr.size();
+
         memcpy(str + i, &resourceStrSize, sizeof(resourceStrSize));
         i += sizeof(resourceStrSize);
 
         memcpy(str + i, resourceStr.data(), resourceStrSize);
         i += resourceStrSize;
+
+        std::cout << "resource done " << resourceStrSize << std::endl;
     }
+
+    std::cout << "resource done -- " << std::endl;
 
     auto passesLen{passes.size()};
     memcpy(str + i, &passesLen, sizeof(passesLen));
@@ -221,6 +228,7 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     for(const auto &pass : passes){
         auto passStr = pass->serialize();
         auto passStrSize = passStr.size();
+
         memcpy(str + i, &passStrSize, sizeof(passStrSize));
         i += sizeof(passStrSize);
 
@@ -239,6 +247,7 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
     memcpy(&resourcesLen, str + i, sizeof(resourcesLen));
     i += sizeof(resourcesLen);
     this->resources.resize(resourcesLen);
+
     for(size_t j{0}; j < resourcesLen; ++j){
         size_t resourceLen;
         memcpy(&resourceLen, str + i, sizeof(resourceLen));
@@ -249,9 +258,14 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         memcpy(resourceStr.data(), str + i, resourceLen);
         i += resourceLen;
 
-        auto resource = std::make_shared<ResourceBase>(GeoResource::deserialize(resourceStr));
+        auto resource = std::make_shared<GeoResource>(GeoResource::deserialize(resourceStr));
+
         this->resources[j] = resource;
+
+        //auto res = std::static_pointer_cast<GeoResource>(resource);
+        std::cout << "res " << resource->name << " with id " << resource->id << " hast mtl " << resource->resourceData.mtl->mtlidkey << " has prim "  << resource->resourceData.prim->verts.size() << std::endl;
     }
+
 
     size_t passesLen;
     memcpy(&passesLen, str + i, sizeof(passesLen));

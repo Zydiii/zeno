@@ -23,7 +23,7 @@ struct MakeRenderPass : INode {
               renderGraph->AddRetainedResource(resource);
             builder.read(resource);
         }
-        std::cout << "RenderPass " << pass->name << " has " << pass->reads.size() << " inputs " << std::endl;
+        //std::cout << "RenderPass " << pass->name << " has " << pass->reads.size() << " inputs " << std::endl;
         set_output("RenderGraph", std::move(renderGraph));
         //set_output("pass", std::move(pass));
     }

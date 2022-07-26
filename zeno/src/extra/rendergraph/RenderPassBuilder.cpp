@@ -13,7 +13,7 @@ ZENO_API std::shared_ptr<ResourceBase> RenderPassBuilder::create(std::string con
 }
 
 ZENO_API void RenderPassBuilder::read(std::shared_ptr<ResourceBase> resource) {
-    std::cout << "pass " << pass << " has resource " << resource  << std::endl;
+    //std::cout << "pass " << pass << " has resource " << resource  << std::endl;
     resource->readers.push_back(pass);
     renderGraph->passes[pass]->reads.push_back(resource);
 }

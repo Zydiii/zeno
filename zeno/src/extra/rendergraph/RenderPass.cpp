@@ -30,7 +30,7 @@ ZENO_API size_t RenderPassBase::serializeSize() const {
     size += sizeof(readsLen);
     for(auto &read : reads)
     {
-        auto readStrSize = read->serializeSize();
+        auto readStrSize = read->actualSerializeSize();
         size += sizeof(readStrSize);
         size += readStrSize;
     }
@@ -39,7 +39,7 @@ ZENO_API size_t RenderPassBase::serializeSize() const {
     size += sizeof(writesLen);
     for(auto &write : writes)
     {
-        auto writeStrSize = write->serializeSize();
+        auto writeStrSize = write->actualSerializeSize();
         size += sizeof(writeStrSize);
         size += writeStrSize;
     }

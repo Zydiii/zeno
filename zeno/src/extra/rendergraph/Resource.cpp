@@ -22,6 +22,10 @@ ZENO_API GeoResource::GeoResource(const std::string &name)
 
 ZENO_API GeoResource::~GeoResource() = default;
 
+ZENO_API size_t GeoResource::actualSerializeSize() const {
+    return serializeSize() + resourceData.serializeSize();
+}
+
 ZENO_API size_t GeoResource::serializeSize() const {
     size_t size{0};
 
@@ -50,6 +54,7 @@ ZENO_API size_t GeoResource::serializeSize() const {
         size += sizeof(writer);
     }
 
+
     return size;
 }
 
@@ -57,6 +62,9 @@ ZENO_API std::vector<char> GeoResource::serialize() const {
     std::vector<char> str;
     str.resize(serializeSize());
     serialize(str.data());
+
+    resourceData.serialize(std::back_inserter(str));
+
     return str;
 }
 
@@ -97,8 +105,10 @@ ZENO_API void GeoResource::serialize(char *str) const {
     }
 }
 
-ZENO_API ResourceBase GeoResource::deserialize(std::vector<char> const &str) {
+ZENO_API GeoResource GeoResource::deserialize(std::vector<char> const &str) {
     GeoResource resource("");
+
+    std::cout << "desize resource" << std::endl;
 
     size_t i{0};
 
@@ -139,6 +149,10 @@ ZENO_API ResourceBase GeoResource::deserialize(std::vector<char> const &str) {
         resource.writers[j] = writer;
         i += sizeof(writer);
     }
+
+    resource.resourceData = GeoResourceDataType::deserialize(str.data() + i);
+
+    std::cout << "resource " << resource.name << " with id " << resource.id << " hast mtl " << resource.resourceData.mtl->mtlidkey << " has prim "  << resource.resourceData.prim->verts.size() << std::endl;
 
     return resource;
 }

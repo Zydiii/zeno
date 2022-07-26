@@ -1,5 +1,5 @@
  #include <zeno/funcs/ObjectCodec.h>
- #include <zeno/extra/RenderGraph.h>
+ #include <zeno/types/RenderGraphObject.h>
 
  namespace zeno {
 

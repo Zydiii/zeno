@@ -1,7 +1,7 @@
 #include <vector>
 #include <zeno/core/INode.h>
 #include <zeno/core/IObject.h>
-#include <zeno/extra/RenderGraph.h>
+#include <zeno/types/RenderGraphObject.h>
 #include <zeno/extra/RenderPass.h>
 #include <zeno/types/ListObject.h>
 #include <zeno/zeno.h>

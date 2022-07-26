@@ -9,10 +9,10 @@
 #include <zeno/types/ListObject.h>
 #include <zeno/utils/cppdemangle.h>
 #include <zeno/types/UserData.h>
+#include <zeno/types/RenderGraphObject.h>
 #include <zeno/utils/log.h>
 #include <algorithm>
 #include <cstring>
-#include <zeno/extra/RenderGraph.h>
 
 namespace zeno {
 

@@ -1,4 +1,4 @@
-#include <zeno/extra/RenderGraph.h>
+#include <zeno/types/RenderGraphObject.h>
 #include <zeno/zeno.h>
 
 namespace zeno{

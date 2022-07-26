@@ -1,5 +1,5 @@
 #include <zenovis/bate/IGraphic.h>
-#include <zeno/extra/RenderGraph.h>
+#include <zeno/types/RenderGraphObject.h>
 #include <zeno/utils/log.h>
 
 namespace zenovis {
@@ -13,7 +13,7 @@ struct GraphicRenderGraph final : IGraphic {
                        rg->renderGraph->passes.size(),
                        rg->renderGraph->resources.size());
         rg->renderGraph->compile();
-        rg->renderGraph->execute();
+        //rg->renderGraph->execute();
         //rg->renderGraph->debugGraphviz("test1.gv");
     }
 };

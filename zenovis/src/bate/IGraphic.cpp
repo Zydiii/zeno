@@ -8,10 +8,10 @@
 #include <zeno/types/LightObject.h>
 #include <zeno/types/MaterialObject.h>
 #include <zeno/types/DummyObject.h>
+#include <zeno/types/RenderGraphObject.h>
 #include <zeno/utils/cppdemangle.h>
 #include <zeno/utils/log.h>
 #include <zenovis/bate/IGraphic.h>
-#include <zeno/extra/RenderGraph.h>
 
 namespace zenovis {
 

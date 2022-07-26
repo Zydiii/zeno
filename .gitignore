@@ -3,7 +3,6 @@ build
 cmake-build-*/
 Debug/
 Release/
-build_*
 
 # ide files
 /.vs

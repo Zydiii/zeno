@@ -24,7 +24,6 @@ ZENDEFNODE(MakeRenderGraph, {
 struct RenderGraphFinalize : INode{
     virtual void apply() override {
         auto renderGraph = get_input<zeno::RenderGraphObject>("RenderGraph");
-        //printf("in finalize %d \n", renderGraph->renderGraph->timeline.size());
         renderGraph->compile();
         //printf("in finalize %d \n", renderGraph->renderGraph->timeline.size());
         renderGraph->debug();

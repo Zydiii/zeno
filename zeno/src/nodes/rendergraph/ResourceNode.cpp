@@ -5,27 +5,24 @@
 #include <zeno/extra/Resource.h>
 
 namespace zeno {
-struct MakeResource : INode {
+struct MakeGeoResource : INode {
     virtual void apply() override {
         auto prim = get_input<zeno::PrimitiveObject>("prim");
         auto mtl = get_input<zeno::MaterialObject>("mtl");
         auto name = get_param<std::string>("name");
         auto geoResource = std::make_shared<GeoResource>(name, prim, mtl);
-        std::cout << "Resource " << geoResource->name << " with id " << geoResource->id << " has mtl " << geoResource->resourceData.mtl->mtlidkey << " has prim "  << geoResource->resourceData.prim->verts.size() << std::endl;
-        //auto test = std::make_shared<zeno::NumericObject>(geoResource->id);
+        //std::cout << "Resource " << geoResource->name << " with id " << geoResource->id << " has mtl " << geoResource->resourceData.mtl->mtlidkey << " has prim "  << geoResource->resourceData.prim->verts.size() << std::endl;
         set_output("resource", std::move(geoResource));
-        //set_output("id", std::move(test));
     }
 };
 
-ZENDEFNODE(MakeResource, {
+ZENDEFNODE(MakeGeoResource, {
                              {
                                  {"primitive", "prim"},
                                  {"material", "mtl"}
                              },
                              {
                                  {"ResourceBase", "resource"}
-                                 //{"int", "id"}
                              },
                              {
                                  {"string", "name", "resource"}

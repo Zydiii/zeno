@@ -12,9 +12,9 @@ namespace zeno {
     struct RenderPassBuilder;
 
     struct RenderStep {
-        RenderPassBase* pass;
-        std::vector<ResourceBase*> instantiatedResources;
-        std::vector<ResourceBase*> releasedResources;
+        std::shared_ptr<RenderPassBase> pass;
+        std::vector<std::shared_ptr<ResourceBase>> instantiatedResources;
+        std::vector<std::shared_ptr<ResourceBase>> releasedResources;
     };
 
     struct RenderGraph {

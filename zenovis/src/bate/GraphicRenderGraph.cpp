@@ -12,6 +12,8 @@ struct GraphicRenderGraph final : IGraphic {
         zeno::log_info("ToView got RenderGraphObject with passes count: {} resource count: {}",
                        rg->renderGraph->passes.size(),
                        rg->renderGraph->resources.size());
+        rg->renderGraph->compile();
+        rg->renderGraph->execute();
         rg->renderGraph->debugGraphviz("test1.gv");
     }
 };

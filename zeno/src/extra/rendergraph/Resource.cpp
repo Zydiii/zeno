@@ -2,6 +2,8 @@
 
 namespace zeno {
 
+ZENO_API ResourceBase::ResourceBase() = default;
+
 ZENO_API ResourceBase::ResourceBase(std::string const &name, std::size_t const &creator)
    : name(name), creator(creator), refCount(0)
 {
@@ -10,6 +12,8 @@ ZENO_API ResourceBase::ResourceBase(std::string const &name, std::size_t const &
 }
 
 ZENO_API ResourceBase::~ResourceBase() = default;
+
+ZENO_API GeoResource::GeoResource() : ResourceBase(), resourceData(nullptr, nullptr) {};
 
 ZENO_API GeoResource::GeoResource(std::string const &name, std::size_t const creator)
     : ResourceBase(name, creator), resourceData(nullptr, nullptr) {}
@@ -69,8 +73,6 @@ ZENO_API std::vector<char> GeoResource::serialize() const {
 }
 
 ZENO_API void GeoResource::serialize(char *str) const {
-    GeoResource resource("");
-
     size_t i{0};
 
     memcpy(str + i, &id, sizeof(id));
@@ -106,9 +108,7 @@ ZENO_API void GeoResource::serialize(char *str) const {
 }
 
 ZENO_API GeoResource GeoResource::deserialize(std::vector<char> const &str) {
-    GeoResource resource("");
-
-    std::cout << "desize resource" << std::endl;
+    GeoResource resource;
 
     size_t i{0};
 
@@ -152,9 +152,17 @@ ZENO_API GeoResource GeoResource::deserialize(std::vector<char> const &str) {
 
     resource.resourceData = GeoResourceDataType::deserialize(str.data() + i);
 
-    std::cout << "resource " << resource.name << " with id " << resource.id << " hast mtl " << resource.resourceData.mtl->mtlidkey << " has prim "  << resource.resourceData.prim->verts.size() << std::endl;
+    //std::cout << "resource " << resource.name << " with id " << resource.id << " hast mtl " << resource.resourceData.mtl->mtlidkey << " has prim "  << resource.resourceData.prim->verts.size() << std::endl;
 
     return resource;
+}
+
+ZENO_API void GeoResource::instantiate() {
+    std::cout << "Instantiate GeoResource " << name << std::endl;
+}
+
+ZENO_API void GeoResource::release() {
+    std::cout << "Release GeoResource " << name << std::endl;
 }
 
 }

@@ -15,14 +15,13 @@ ZENO_API void RenderGraph::compile() {
     // counting ref count
     for(auto &pass : passes)
         pass->refCount = pass->creates.size() + pass->writes.size();
-    for(auto &pass : passes)
-        std::cout << "pass " << pass->id << " has " << pass->refCount << std::endl;
+
     std::stack<ResourceBase*> unreferencedResources;
     for(auto &resource : resources){
         resource->refCount = resource->readers.size();
         if(resource->refCount == 0)
             unreferencedResources.push(resource.get());
-        std::cout << "resource " << resource << "has readers " << resource->refCount << std::endl;
+        //std::cout << "resource " << resource << "has readers " << resource->refCount << std::endl;
     }
 
     // delete unreferenced resource
@@ -65,17 +64,20 @@ ZENO_API void RenderGraph::compile() {
 //        if(pass->refCount == 0)
 //            continue;
 
-        std::vector<ResourceBase*> instantiatedResource, releasedResource;
+        std::vector<std::shared_ptr<ResourceBase>> instantiatedResource, releasedResource;
         for(auto resource : pass->creates){
-            instantiatedResource.push_back(resource.get());
+            instantiatedResource.push_back(resource);
             if(resource->readers.empty() && resource->writers.empty())
-                releasedResource.push_back(resource.get());
+                releasedResource.push_back(resource);
         }
 
         // find the last user of the resource
         auto reads_writes = pass->reads;
         reads_writes.insert(reads_writes.end(), pass->writes.begin(), pass->writes.end());
+
         for(auto resource : reads_writes){
+//            if(resource->creator == -1)
+//                continue;
             auto valid = false;
             size_t lastIndex;
             if(!resource->readers.empty() && resource->readers.back() < passes.size()){
@@ -88,22 +90,26 @@ ZENO_API void RenderGraph::compile() {
                 lastIndex = std::max(lastIndex, resource->writers.back());
             }
 
-            if(valid && passes[lastIndex] == pass)
-                releasedResource.push_back(resource.get());
+            if(valid && passes[lastIndex] == pass){
+                //std::cout << resource->name << "with" << pass->name << std::endl;
+                releasedResource.push_back(resource);
+            }
 
-            timeline.push_back(RenderStep{pass.get(), instantiatedResource, releasedResource});
+            //std::cout << resource->name << " last index " << lastIndex << std::endl;
         }
+        timeline.push_back(RenderStep{pass, instantiatedResource, releasedResource});
     }
 }
 
 ZENO_API void RenderGraph::execute() const {
-    // for(auto &step : timeline){
-    //     for(auto resource : step.releasedResources)
-    //         resource->instantiate();
-    //     step.pass->render();
-    //     for(auto resource : step.releasedResources)
-    //         resource->release();
-    // }
+     for(auto &step : timeline){
+         std::cout << "### timeline ###" << std::endl;
+         for(auto resource : step.instantiatedResources)
+             resource->instantiate();
+         step.pass->render();
+         for(auto resource : step.releasedResources)
+             resource->release();
+     }
 }
 
 ZENO_API void RenderGraph::clear() {
@@ -216,11 +222,7 @@ ZENO_API void RenderGraph::serialize(char *str) const {
 
         memcpy(str + i, resourceStr.data(), resourceStrSize);
         i += resourceStrSize;
-
-        std::cout << "resource done " << resourceStrSize << std::endl;
     }
-
-    std::cout << "resource done -- " << std::endl;
 
     auto passesLen{passes.size()};
     memcpy(str + i, &passesLen, sizeof(passesLen));
@@ -261,9 +263,6 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         auto resource = std::make_shared<GeoResource>(GeoResource::deserialize(resourceStr));
 
         this->resources[j] = resource;
-
-        //auto res = std::static_pointer_cast<GeoResource>(resource);
-        std::cout << "res " << resource->name << " with id " << resource->id << " hast mtl " << resource->resourceData.mtl->mtlidkey << " has prim "  << resource->resourceData.prim->verts.size() << std::endl;
     }
 
 
@@ -281,7 +280,7 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         memcpy(passStr.data(), str + i, passLen);
         i += passLen;
 
-        auto pass = std::make_shared<RenderPassBase>(RenderPassBase::deserialize(passStr));
+        auto pass = std::make_shared<GeoPass>(GeoPass::deserialize(passStr));
         this->passes[j] = pass;
     }
 }

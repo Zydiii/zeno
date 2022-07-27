@@ -33,6 +33,8 @@ ZENO_API size_t GeoResource::actualSerializeSize() const {
 ZENO_API size_t GeoResource::serializeSize() const {
     size_t size{0};
 
+    size += sizeof(type);
+
     size += sizeof(id);
 
     auto nameLen{name.size()};
@@ -58,7 +60,6 @@ ZENO_API size_t GeoResource::serializeSize() const {
         size += sizeof(writer);
     }
 
-
     return size;
 }
 
@@ -68,12 +69,14 @@ ZENO_API std::vector<char> GeoResource::serialize() const {
     serialize(str.data());
 
     resourceData.serialize(std::back_inserter(str));
-
     return str;
 }
 
 ZENO_API void GeoResource::serialize(char *str) const {
     size_t i{0};
+
+    memcpy(str + i, &type, sizeof(type));
+    i += sizeof(type);
 
     memcpy(str + i, &id, sizeof(id));
     i += sizeof(id);
@@ -111,6 +114,9 @@ ZENO_API GeoResource GeoResource::deserialize(std::vector<char> const &str) {
     GeoResource resource;
 
     size_t i{0};
+
+    memcpy(&resource.type, str.data() + i, sizeof(resource.type));
+    i += sizeof(resource.type);
 
     memcpy(&resource.id, str.data() + i, sizeof(resource.id));
     i += sizeof(resource.id);

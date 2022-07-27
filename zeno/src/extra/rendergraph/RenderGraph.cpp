@@ -255,16 +255,23 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         memcpy(&resourceLen, str + i, sizeof(resourceLen));
         i += sizeof(resourceLen);
 
+        size_t type;
+        memcpy(&type, str + i, sizeof(type));
+
         std::vector<char> resourceStr;
         resourceStr.resize(resourceLen);
         memcpy(resourceStr.data(), str + i, resourceLen);
         i += resourceLen;
 
-        auto resource = std::make_shared<GeoResource>(GeoResource::deserialize(resourceStr));
-
-        this->resources[j] = resource;
+        if(type == 0){
+            auto resource = std::make_shared<GeoResource>(GeoResource::deserialize(resourceStr));
+            this->resources[j] = resource;
+        }
+        else{
+            auto resource = std::make_shared<ResourceBase>(ResourceBase::deserialize(resourceStr));
+            this->resources[j] = resource;
+        }
     }
-
 
     size_t passesLen;
     memcpy(&passesLen, str + i, sizeof(passesLen));
@@ -275,13 +282,22 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         memcpy(&passLen, str + i, sizeof(passLen));
         i += sizeof(passLen);
 
+        size_t type;
+        memcpy(&type, str + i, sizeof(type));
+
         std::vector<char> passStr;
         passStr.resize(passLen);
         memcpy(passStr.data(), str + i, passLen);
         i += passLen;
 
-        auto pass = std::make_shared<GeoPass>(GeoPass::deserialize(passStr));
-        this->passes[j] = pass;
+        if(type == 0){
+            auto pass = std::make_shared<ForwardPass>(ForwardPass::deserialize(passStr));
+            this->passes[j] = pass;
+        }
+        else{
+            auto pass = std::make_shared<RenderPassBase>(RenderPassBase::deserialize(passStr));
+            this->passes[j] = pass;
+        }
     }
 }
 

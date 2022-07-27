@@ -7,11 +7,11 @@
 #include <zeno/zeno.h>
 
 namespace zeno {
-struct MakeGeoPass : INode {
+struct MakeForwardPass : INode {
     virtual void apply() override {
         auto list = get_input<zeno::ListObject>("inputs")->get<ResourceBase>();
         auto name = get_param<std::string>("name");
-        auto pass = std::make_shared<GeoPass>(name);
+        auto pass = std::make_shared<ForwardPass>(name);
         auto renderGraph = get_input<zeno::RenderGraphObject>("RenderGraph");
         renderGraph->AddRenderPass(pass);
         RenderPassBuilder builder(renderGraph->renderGraph, renderGraph->renderGraph->passes.size() - 1);
@@ -28,7 +28,7 @@ struct MakeGeoPass : INode {
     }
 };
 
-ZENDEFNODE(MakeGeoPass, {
+ZENDEFNODE(MakeForwardPass, {
                              {
                                  {"ListObject", "inputs"},
                                    {"RenderGraphObject", "RenderGraph"}

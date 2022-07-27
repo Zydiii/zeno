@@ -8,6 +8,7 @@ namespace zeno {
 struct ResourceBase;
 
 struct RenderPassBase : IObjectClone<RenderPassBase> {
+    std::size_t type = -1;
     std::string name;
     std::vector<std::shared_ptr<ResourceBase>> creates;
     std::vector<std::shared_ptr<ResourceBase>> reads;
@@ -26,15 +27,16 @@ struct RenderPassBase : IObjectClone<RenderPassBase> {
     ZENO_API virtual void render(){};
 };
 
-struct GeoPass : RenderPassBase {
-    ZENO_API GeoPass();
-    ZENO_API GeoPass(std::string const &name);
-    ZENO_API ~GeoPass();
+struct ForwardPass : RenderPassBase {
+    std::size_t type = 0;
+    ZENO_API ForwardPass();
+    ZENO_API ForwardPass(std::string const &name);
+    ZENO_API ~ForwardPass();
 
     ZENO_API size_t serializeSize() const override;
     ZENO_API std::vector<char> serialize() const override;
     ZENO_API void serialize(char *str) const override;
-    ZENO_API static GeoPass deserialize(std::vector<char> const &str);
+    ZENO_API static ForwardPass deserialize(std::vector<char> const &str);
     ZENO_API virtual void render() override;
 };
 

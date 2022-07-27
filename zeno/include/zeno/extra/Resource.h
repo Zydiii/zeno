@@ -9,6 +9,7 @@
 
 namespace zeno {
 struct ResourceBase : IObject{
+    std::size_t type = -1;
     std::size_t id;
     std::string name;
     std::size_t refCount;
@@ -62,6 +63,7 @@ struct GeoResourceDataType {
 };
 
 struct GeoResource : ResourceBase {
+    std::size_t type = 0;
     GeoResourceDataType resourceData;
 
     ZENO_API GeoResource(std::string const &name, std::size_t const creator);

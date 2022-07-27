@@ -12,16 +12,16 @@ ZENO_API RenderPassBase::RenderPassBase() = default;
 
 ZENO_API RenderPassBase::~RenderPassBase() = default;
 
-ZENO_API GeoPass::GeoPass(): RenderPassBase() {}
-ZENO_API GeoPass::GeoPass(const std::string &name)
+ZENO_API ForwardPass::ForwardPass(): RenderPassBase() {}
+ZENO_API ForwardPass::ForwardPass(const std::string &name)
     : RenderPassBase(name) {}
 
-ZENO_API GeoPass::~GeoPass() = default;
+ZENO_API ForwardPass::~ForwardPass() = default;
 
-
-
-ZENO_API size_t GeoPass::serializeSize() const {
+ZENO_API size_t ForwardPass::serializeSize() const {
     size_t size{0};
+
+    size += sizeof(type);
 
     auto nameLen{name.size()};
     size += sizeof(nameLen);
@@ -60,15 +60,18 @@ ZENO_API size_t GeoPass::serializeSize() const {
     return size;
 }
 
-ZENO_API std::vector<char> GeoPass::serialize() const {
+ZENO_API std::vector<char> ForwardPass::serialize() const {
     std::vector<char> str;
     str.resize(serializeSize());
     serialize(str.data());
     return str;
 }
 
-ZENO_API void GeoPass::serialize(char *str) const {
+ZENO_API void ForwardPass::serialize(char *str) const {
     size_t i{0};
+
+    memcpy(str + i, &type, sizeof(type));
+    i += sizeof(type);
 
     auto nameLen{name.size()};
     memcpy(str + i, &nameLen, sizeof(nameLen));
@@ -119,10 +122,13 @@ ZENO_API void GeoPass::serialize(char *str) const {
     i += sizeof(id);
 }
 
-ZENO_API GeoPass GeoPass::deserialize(std::vector<char> const &str) {
-    GeoPass renderPass;
+ZENO_API ForwardPass ForwardPass::deserialize(std::vector<char> const &str) {
+    ForwardPass renderPass;
 
     size_t i{0};
+
+    memcpy(&renderPass.type, str.data() + i, sizeof(renderPass.type));
+    i += sizeof(renderPass.type);
 
     size_t nameLen;
     memcpy(&nameLen, str.data() + i, sizeof(nameLen));
@@ -139,13 +145,22 @@ ZENO_API GeoPass GeoPass::deserialize(std::vector<char> const &str) {
         memcpy(&createStrLen, str.data() + i, sizeof(createStrLen));
         i += sizeof(createStrLen);
 
+        size_t type;
+        memcpy(&type, str.data() + i, sizeof(type));
+
         std::vector<char> createStr;
         createStr.resize(createStrLen);
         memcpy(createStr.data(), str.data() + i, createStrLen);
         i += createStrLen;
 
-        auto create = std::make_shared<GeoResource>(GeoResource::deserialize(createStr));
-        renderPass.creates[j] = create;
+        if(type == 0){
+            auto create = std::make_shared<GeoResource>(GeoResource::deserialize(createStr));
+            renderPass.creates[j] = create;
+        }
+        else{
+            auto create = std::make_shared<ResourceBase>(ResourceBase::deserialize(createStr));
+            renderPass.creates[j] = create;
+        }
     }
 
     size_t readsLen;
@@ -157,13 +172,22 @@ ZENO_API GeoPass GeoPass::deserialize(std::vector<char> const &str) {
         memcpy(&readStrLen, str.data() + i, sizeof(readStrLen));
         i += sizeof(readStrLen);
 
+        size_t type;
+        memcpy(&type, str.data() + i, sizeof(type));
+
         std::vector<char> readStr;
         readStr.resize(readStrLen);
         memcpy(readStr.data(), str.data() + i, readStrLen);
         i += readStrLen;
 
-        auto read = std::make_shared<GeoResource>(GeoResource::deserialize(readStr));
-        renderPass.reads[j] = read;
+        if(type == 0){
+            auto read = std::make_shared<GeoResource>(GeoResource::deserialize(readStr));
+            renderPass.reads[j] = read;
+        }
+        else{
+            auto read = std::make_shared<ResourceBase>(ResourceBase::deserialize(readStr));
+            renderPass.reads[j] = read;
+        }
     }
 
     size_t writesLen;
@@ -175,13 +199,22 @@ ZENO_API GeoPass GeoPass::deserialize(std::vector<char> const &str) {
         memcpy(&writeStrLen, str.data() + i, sizeof(writeStrLen));
         i += sizeof(writeStrLen);
 
+        size_t type;
+        memcpy(&type, str.data() + i, sizeof(type));
+
         std::vector<char> writeStr;
         writeStr.resize(writeStrLen);
         memcpy(writeStr.data(), str.data() + i, writeStrLen);
         i += writeStrLen;
 
-        auto write = std::make_shared<GeoResource>(GeoResource::deserialize(writeStr));
-        renderPass.writes[j] = write;
+        if(type == 0){
+            auto write = std::make_shared<GeoResource>(GeoResource::deserialize(writeStr));
+            renderPass.writes[j] = write;
+        }
+        else{
+            auto write = std::make_shared<ResourceBase>(ResourceBase::deserialize(writeStr));
+            renderPass.writes[j] = write;
+        }
     }
 
     memcpy(&renderPass.refCount, str.data() + i, sizeof(renderPass.refCount));
@@ -193,7 +226,7 @@ ZENO_API GeoPass GeoPass::deserialize(std::vector<char> const &str) {
     return renderPass;
 }
 
-ZENO_API void GeoPass::render() {
+ZENO_API void ForwardPass::render() {
     std::cout << "Render GeoPass " << name << std::endl;
 }
 

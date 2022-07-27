@@ -4,7 +4,7 @@ namespace zeno {
 
 ZENO_API ResourceBase::ResourceBase() = default;
 
-ZENO_API ResourceBase::ResourceBase(std::string const &name, std::size_t const &creator)
+ZENO_API ResourceBase::ResourceBase(std::string const &name, int const &creator)
    : name(name), creator(creator), refCount(0)
 {
    static int id_{0};
@@ -15,7 +15,7 @@ ZENO_API ResourceBase::~ResourceBase() = default;
 
 ZENO_API GeoResource::GeoResource() : ResourceBase(), resourceData(nullptr, nullptr) {};
 
-ZENO_API GeoResource::GeoResource(std::string const &name, std::size_t const creator)
+ZENO_API GeoResource::GeoResource(std::string const &name, int const creator)
     : ResourceBase(name, creator), resourceData(nullptr, nullptr) {}
 
 ZENO_API GeoResource::GeoResource(std::string const &name, std::shared_ptr<PrimitiveObject> const &prim, std::shared_ptr<MaterialObject> const &mtl)
@@ -169,6 +169,169 @@ ZENO_API void GeoResource::instantiate() {
 
 ZENO_API void GeoResource::release() {
     std::cout << "Release GeoResource " << name << std::endl;
+}
+
+
+ZENO_API TextureResource::TextureResource(std::string const &name, int creator, std::size_t const width, std::size_t const height)
+    : ResourceBase(name, creator), resourceData(width, height) {}
+
+ZENO_API TextureResource::TextureResource(std::string const &name, std::size_t const width, std::size_t const height)
+    : ResourceBase(name, -1), resourceData(width, height) {}
+
+ZENO_API TextureResource::TextureResource(const std::string &name, int const creator)
+    : ResourceBase(name, creator) {}
+
+ZENO_API TextureResource::TextureResource(const std::string &name)
+    : ResourceBase(name, -1) {}
+
+ZENO_API TextureResource::TextureResource() = default;
+ZENO_API TextureResource::~TextureResource() = default;
+
+ZENO_API size_t TextureResource::actualSerializeSize() const {
+    return serializeSize() + resourceData.serializeSize();
+}
+
+ZENO_API size_t TextureResource::serializeSize() const {
+    size_t size{0};
+
+    size += sizeof(type);
+
+    size += sizeof(id);
+
+    auto nameLen{name.size()};
+    size += sizeof(nameLen);
+    size += nameLen;
+
+    size += sizeof(refCount);
+
+    size += sizeof(creator);
+
+    auto readersLen{readers.size()};
+    size += sizeof(readersLen);
+
+    for(auto &reader : readers)
+    {
+        size += sizeof(reader);
+    }
+
+    auto writersLen{writers.size()};
+    size += sizeof(writersLen);
+    for(auto &writer : writers)
+    {
+        size += sizeof(writer);
+    }
+
+    return size;
+}
+
+ZENO_API std::vector<char> TextureResource::serialize() const {
+    std::vector<char> str;
+    str.resize(serializeSize());
+    serialize(str.data());
+
+    std::vector<char> strdata;
+    strdata = resourceData.serialize();
+    str.insert(str.end(), strdata.begin(), strdata.end());
+    return str;
+}
+
+ZENO_API void TextureResource::serialize(char *str) const {
+    size_t i{0};
+
+    memcpy(str + i, &type, sizeof(type));
+    i += sizeof(type);
+
+    memcpy(str + i, &id, sizeof(id));
+    i += sizeof(id);
+
+    auto nameLen{name.size()};
+    memcpy(str + i, &nameLen, sizeof(nameLen));
+    i += sizeof(nameLen);
+    name.copy(str + i, nameLen);
+    i += nameLen;
+
+    memcpy(str + i, &refCount, sizeof(refCount));
+    i += sizeof(refCount);
+
+    memcpy(str + i, &creator, sizeof(creator));
+    i += sizeof(creator);
+
+    auto readersLen{readers.size()};
+    memcpy(str + i, &readersLen, sizeof(readersLen));
+    i += sizeof(readersLen);
+    for(const auto &reader : readers){
+        memcpy(str + i, &reader, sizeof(reader));
+        i += sizeof(reader);
+    }
+
+    auto writersLen{writers.size()};
+    memcpy(str + i, &writersLen, sizeof(writersLen));
+    i += sizeof(writersLen);
+    for(const auto &writer : writers){
+        memcpy(str + i, &writer, sizeof(writer));
+        i += sizeof(writer);
+    }
+}
+
+ZENO_API TextureResource TextureResource::deserialize(std::vector<char> const &str) {
+    TextureResource resource;
+
+    size_t i{0};
+
+    memcpy(&resource.type, str.data() + i, sizeof(resource.type));
+    i += sizeof(resource.type);
+
+    memcpy(&resource.id, str.data() + i, sizeof(resource.id));
+    i += sizeof(resource.id);
+
+    size_t nameLen;
+    memcpy(&nameLen, str.data() + i, sizeof(nameLen));
+    i += sizeof(nameLen);
+
+    resource.name = std::string{str.data() + i, nameLen};
+    i += nameLen;
+
+    memcpy(&resource.refCount, str.data() + i, sizeof(resource.refCount));
+    i += sizeof(resource.refCount);
+
+    memcpy(&resource.creator, str.data() + i, sizeof(resource.creator));
+    i += sizeof(resource.creator);
+
+    size_t readersLen;
+    memcpy(&readersLen, str.data() + i, sizeof(readersLen));
+    i += sizeof(readersLen);
+    resource.readers.resize(readersLen);
+    for(size_t j{0}; j < readersLen; ++j){
+        size_t reader;
+        memcpy(&reader, str.data() + i, sizeof(reader));
+        resource.readers[j] = reader;
+        i += sizeof(reader);
+    }
+
+    size_t writersLen;
+    memcpy(&writersLen, str.data() + i, sizeof(writersLen));
+    i += sizeof(writersLen);
+    resource.writers.resize(writersLen);
+    for(size_t j{0}; j < writersLen; ++j){
+        size_t writer;
+        memcpy(&writer, str.data() + i, sizeof(writer));
+        resource.writers[j] = writer;
+        i += sizeof(writer);
+    }
+
+    resource.resourceData = TextureResourceDataType::deserialize(str.data() + i);
+
+    //std::cout << "resource " << resource.name << " with id " << resource.id << " hast mtl " << resource.resourceData.mtl->mtlidkey << " has prim "  << resource.resourceData.prim->verts.size() << std::endl;
+
+    return resource;
+}
+
+ZENO_API void TextureResource::instantiate() {
+    std::cout << "Instantiate TextureResource " << name << std::endl;
+}
+
+ZENO_API void TextureResource::release() {
+    std::cout << "Release TextureResource " << name << std::endl;
 }
 
 }

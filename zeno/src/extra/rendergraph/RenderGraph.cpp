@@ -12,6 +12,7 @@ ZENO_API RenderGraph::RenderGraph()
 ZENO_API RenderGraph::~RenderGraph() = default;
 
 ZENO_API void RenderGraph::compile() {
+    //std::cout << "compile" << std::endl;
     // counting ref count
     for(auto &pass : passes)
         pass->refCount = pass->creates.size() + pass->writes.size();
@@ -19,17 +20,24 @@ ZENO_API void RenderGraph::compile() {
     std::stack<ResourceBase*> unreferencedResources;
     for(auto &resource : resources){
         resource->refCount = resource->readers.size();
+        //std::cout << "resource->refCount " << resource->refCount << std::endl;
         if(resource->refCount == 0)
             unreferencedResources.push(resource.get());
         //std::cout << "resource " << resource << "has readers " << resource->refCount << std::endl;
     }
+    //std::cout << unreferencedResources.size() << std::endl;
 
     // delete unreferenced resource
     while(!unreferencedResources.empty()){
         auto unreferencedResource = unreferencedResources.top();
         unreferencedResources.pop();
 
+        //std::cout << "unreferencedResource->creator " << unreferencedResource->creator << std::endl;
+        if(unreferencedResource->creator == -1)
+            continue;
+
         auto creator = passes[unreferencedResource->creator];
+
         if(creator->refCount > 0)
             creator->refCount--;
         if(creator->refCount == 0){
@@ -78,6 +86,9 @@ ZENO_API void RenderGraph::compile() {
         for(auto resource : reads_writes){
 //            if(resource->creator == -1)
 //                continue;
+
+            //std::cout << "reads_writes->refCount " << resource << " refCount " << resource->refCount << std::endl;
+
             auto valid = false;
             size_t lastIndex;
             if(!resource->readers.empty() && resource->readers.back() < passes.size()){
@@ -99,6 +110,12 @@ ZENO_API void RenderGraph::compile() {
         }
         timeline.push_back(RenderStep{pass, instantiatedResource, releasedResource});
     }
+
+//    for(auto &resource : resources){
+//        std::cout << "resource " << resource->name << " " << resource << " " << resource->refCount << std::endl;
+//    }
+
+    //std::cout << "compile done" << std::endl;
 }
 
 ZENO_API void RenderGraph::execute() const {
@@ -130,8 +147,9 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
     stream << "\n";
 
     // resource
-    for (auto& resource : resources)
+    for (auto& resource : resources){
         stream << "\"" << resource->name << "\" [label=\"" << resource->name << "\\nRefs: " << resource->refCount << "\\nID: " << resource->id << "\", style=filled, fillcolor=skyblue4" << "]\n";
+    }
     stream << "\n";
 
     for (auto& pass : passes)
@@ -212,8 +230,9 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     auto resourcesLen{resources.size()};
     memcpy(str + i, &resourcesLen, sizeof(resourcesLen));
     i += sizeof(resourcesLen);
-
     for(const auto &resource : resources){
+        //std::cout << resource->id << std::endl;
+
         auto resourceStr = resource->serialize();
         auto resourceStrSize = resourceStr.size();
 
@@ -228,6 +247,8 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     memcpy(str + i, &passesLen, sizeof(passesLen));
     i += sizeof(passesLen);
     for(const auto &pass : passes){
+        //'std::cout << pass->id << std::endl;
+
         auto passStr = pass->serialize();
         auto passStrSize = passStr.size();
 
@@ -241,6 +262,8 @@ ZENO_API void RenderGraph::serialize(char *str) const {
 
 ZENO_API void RenderGraph::deserialize(const char *str) {
     size_t i{0};
+
+    //std::cout << "RenderGraph::deserialize" << std::endl;
 
     memcpy(&id, str + i, sizeof(id));
     i += sizeof(id);
@@ -265,6 +288,10 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
 
         if(type == 0){
             auto resource = std::make_shared<GeoResource>(GeoResource::deserialize(resourceStr));
+            this->resources[j] = resource;
+        }
+        else if(type == 1){
+            auto resource = std::make_shared<TextureResource>(TextureResource::deserialize(resourceStr));
             this->resources[j] = resource;
         }
         else{
@@ -297,6 +324,18 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
         else{
             auto pass = std::make_shared<RenderPassBase>(RenderPassBase::deserialize(passStr));
             this->passes[j] = pass;
+        }
+    }
+
+    for(auto &pass : passes){
+        for(auto &create : pass->creates){
+            create = resources[create->id];
+        }
+        for(auto &read : pass->reads){
+            read = resources[read->id];
+        }
+        for(auto &write : pass->writes){
+            write = resources[write->id];
         }
     }
 }

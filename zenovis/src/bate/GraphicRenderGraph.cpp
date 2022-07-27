@@ -14,7 +14,7 @@ struct GraphicRenderGraph final : IGraphic {
                        rg->renderGraph->resources.size());
         rg->renderGraph->compile();
         //rg->renderGraph->execute();
-        //rg->renderGraph->debugGraphviz("test1.gv");
+        rg->renderGraph->debugGraphviz("test1.gv");
     }
 };
 

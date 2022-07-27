@@ -14,7 +14,7 @@ struct RenderPassBase : IObjectClone<RenderPassBase> {
     std::vector<std::shared_ptr<ResourceBase>> reads;
     std::vector<std::shared_ptr<ResourceBase>> writes;
     std::size_t refCount;
-    std::size_t id;
+    int id;
 
     ZENO_API RenderPassBase();
     ZENO_API RenderPassBase(std::string const &name);

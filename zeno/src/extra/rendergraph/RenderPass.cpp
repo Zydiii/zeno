@@ -157,6 +157,10 @@ ZENO_API ForwardPass ForwardPass::deserialize(std::vector<char> const &str) {
             auto create = std::make_shared<GeoResource>(GeoResource::deserialize(createStr));
             renderPass.creates[j] = create;
         }
+        else if(type == 1){
+            auto create = std::make_shared<TextureResource>(TextureResource::deserialize(createStr));
+            renderPass.creates[j] = create;
+        }
         else{
             auto create = std::make_shared<ResourceBase>(ResourceBase::deserialize(createStr));
             renderPass.creates[j] = create;
@@ -182,6 +186,10 @@ ZENO_API ForwardPass ForwardPass::deserialize(std::vector<char> const &str) {
 
         if(type == 0){
             auto read = std::make_shared<GeoResource>(GeoResource::deserialize(readStr));
+            renderPass.reads[j] = read;
+        }
+        else if(type == 1){
+            auto read = std::make_shared<TextureResource>(TextureResource::deserialize(readStr));
             renderPass.reads[j] = read;
         }
         else{
@@ -211,6 +219,10 @@ ZENO_API ForwardPass ForwardPass::deserialize(std::vector<char> const &str) {
             auto write = std::make_shared<GeoResource>(GeoResource::deserialize(writeStr));
             renderPass.writes[j] = write;
         }
+        else if(type == 1){
+            auto write = std::make_shared<TextureResource>(TextureResource::deserialize(writeStr));
+            renderPass.writes[j] = write;
+        }
         else{
             auto write = std::make_shared<ResourceBase>(ResourceBase::deserialize(writeStr));
             renderPass.writes[j] = write;
@@ -223,11 +235,13 @@ ZENO_API ForwardPass ForwardPass::deserialize(std::vector<char> const &str) {
     memcpy(&renderPass.id, str.data() + i, sizeof(renderPass.id));
     i += sizeof(renderPass.id);
 
+    //std::cout << "pass id" << renderPass.id << std::endl;
+
     return renderPass;
 }
 
 ZENO_API void ForwardPass::render() {
-    std::cout << "Render GeoPass " << name << std::endl;
+    std::cout << "Render ForwardPass " << name << std::endl;
 }
 
 }

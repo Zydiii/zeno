@@ -49,7 +49,7 @@ void ZTcpServer::startProc(const std::string& progJson)
     ZASSERT_EXIT(m_tcpServer);
     if (m_proc && m_proc->isOpen())
     {
-        zeno::log_warn("A program is already running! Please kill first");
+        zeno::log_info("background process already running");
         return;
     }
 
@@ -93,7 +93,7 @@ void ZTcpServer::onNewConnection()
     }
     else
     {
-        zeno::log_info("tcp connection succeed");
+        zeno::log_debug("tcp connection succeed");
 
     }
     connect(m_tcpSocket, SIGNAL(readyRead()), this, SLOT(onReadyRead()));

@@ -15,7 +15,9 @@ ZenoApplication::ZenoApplication(int &argc, char **argv)
     , m_pGraphs(new GraphsManagment())
     , m_bIOProcessing(false)
     , m_errSteam(std::clog)
+#if defined(ZENO_MULTIPROCESS) && defined(ZENO_IPC_USE_TCP)
     , m_server(nullptr)
+#endif
 {
     initFonts();
     initStyleSheets();
@@ -114,5 +116,13 @@ ZenoMainWindow* ZenoApplication::getMainWindow()
 	foreach(QWidget* widget, topLevelWidgets())
 		if (ZenoMainWindow* mainWindow = qobject_cast<ZenoMainWindow*>(widget))
 			return mainWindow;
-	return nullptr;
+    return nullptr;
+}
+
+QWidget *ZenoApplication::getWindow(const QString &objName)
+{
+    foreach (QWidget *widget, QApplication::allWidgets())
+        if(widget->objectName() == objName)
+            return widget;
+    return nullptr;
 }

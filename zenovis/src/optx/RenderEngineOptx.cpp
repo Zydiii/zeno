@@ -46,7 +46,6 @@ struct GraphicsManager {
             #pragma omp parallel for
             for (size_t i = 0; i < prim->tris.size(); ++i)
             {
-                if(has_uv) {
                     const auto &pos0 = pos[tris[i][0]];
                     const auto &pos1 = pos[tris[i][1]];
                     const auto &pos2 = pos[tris[i][2]];
@@ -76,7 +75,8 @@ struct GraphicsManager {
                     tangent[0] = f * (deltaUV1[1] * edge0[0] - deltaUV0[1] * edge1[0]);
                     tangent[1] = f * (deltaUV1[1] * edge0[1] - deltaUV0[1] * edge1[1]);
                     tangent[2] = f * (deltaUV1[1] * edge0[2] - deltaUV0[1] * edge1[2]);
-                    //printf("%f %f %f\n", tangent[0], tangent[1], tangent[3]);
+                    //printf("tangent:%f %f %f\n", tangent[0], tangent[1], tangent[2]);
+                    //zeno::log_info("tangent {} {} {}",tangent[0], tangent[1], tangent[2]);
                     auto tanlen = zeno::length(tangent);
                     tangent * (1.f / (tanlen + 1e-8));
                     /*if (std::abs(tanlen) < 1e-8) {//fix by BATE
@@ -86,11 +86,6 @@ struct GraphicsManager {
                         tang[i] = tangent * (1.f / tanlen);
                     }*/
                     tang[i] = tangent;
-                } else {
-                    tang[i] = zeno::vec3f(0);
-                    //zeno::vec3f n = nrm[tris[i][0]], unused;
-                    //zeno::pixarONB(n, tang[i], unused);
-                }
             }
         }
         std::string key;
@@ -456,7 +451,7 @@ struct RenderEngineOptx : RenderEngine, zeno::disable_copy {
         CHECK_GL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &targetFBO));
         {
             auto bindVao = opengl::scopeGLBindVertexArray(vao->vao);
-            xinxinoptix::optixrender(targetFBO);
+            xinxinoptix::optixrender(targetFBO, scene->drawOptions->num_samples);
         }
         CHECK_GL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFBO));
     }

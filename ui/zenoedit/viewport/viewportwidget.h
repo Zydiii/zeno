@@ -26,10 +26,14 @@ public:
 struct VideoRecInfo
 {
     QString record_path;
+    QString videoname;
     QVector2D res;
     QPair<int, int> frameRange;
+    int fps;
+    int bitrate;
     VideoRecInfo() {
         res = { 0,0 };
+        fps = bitrate = 0;
         frameRange = { -1, -1 };
     }
 };
@@ -52,6 +56,7 @@ public:
     QVector3D realPos() const;
     QVector3D screenToWorldRay(float x, float y) const;
     QVariant hitOnFloor(float x, float y) const;
+
 
 private:
     bool m_mmb_pressed;
@@ -76,9 +81,10 @@ public:
     void initializeGL() override;
     void resizeGL(int nx, int ny) override;
     void paintGL() override;
-    void rendering();
-    void setRecordInfo(const VideoRecInfo& info);
-    void recordCurrFrame();
+    void checkRecord(std::string a_record_file, QVector2D a_record_res, int a_nsamples);
+    QVector2D cameraRes() const;
+    void setCameraRes(const QVector2D& res);
+    void updatePerspective();
 
 signals:
     void frameRecorded(int);
@@ -91,7 +97,8 @@ protected:
 
 private:
     std::shared_ptr<CameraControl> m_camera;
-    VideoRecInfo m_recordInfo;
+    std::string record_path;
+    QVector2D record_res;
 };
 
 class CameraKeyframeWidget;
@@ -118,11 +125,14 @@ signals:
     void frameUpdated(int new_frame);
 
 private:
+    bool isOptxRendering() const;
+
     ViewportWidget* m_view;
     ZTimeline* m_timeline;
     ZenoMainWindow* m_mainWin;
     CameraKeyframeWidget* m_camera_keyframe;
     QTimer* m_pTimer;
+    QThread m_recThread;
     static const int m_updateFeq = 16;
     static const int m_sliderFeq = 16;
 };

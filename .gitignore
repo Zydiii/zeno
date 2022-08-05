@@ -3,6 +3,7 @@ build
 cmake-build-*/
 Debug/
 Release/
+.xmake/
 
 # ide files
 /.vs
@@ -12,3 +13,4 @@ Release/
 CMakeSettings.json
 CMakeUserPresets.json
 .vim_localrc
+CMakeLists.txt.user

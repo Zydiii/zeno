@@ -7,6 +7,7 @@
 #include <zeno/PrimitiveObject.h>
 #include <zeno/StringObject.h>
 #include <zeno/VDBGrid.h>
+#include <zeno/utils/log.h>
 #include <zeno/utils/vec.h>
 #include <zeno/zeno.h>
 #include <zeno/ZenoInc.h>
@@ -243,6 +244,7 @@ struct VDBVoxelAsParticles : INode {
     else
     {
         auto type = get_input<VDBGrid>("vdbGrid")->getType();
+        zeno::log_info("VDBVoxelAsParticles got vdbGrid type: {}", type);
         if(type == "FloatGrid"){
             auto ingrid = get_input<VDBFloatGrid>("vdbGrid");
             auto const &grid = ingrid->m_grid;
@@ -304,7 +306,7 @@ struct VDBVoxelAsParticles : INode {
             auto prim = std::make_shared<zeno::PrimitiveObject>();
             prim->resize(zspos.size());
             auto &primPos = prim->add_attr<vec3f>("pos");
-            auto &primVal = prim->add_attr<vec3f>(valToAttr);
+            auto &primVal = prim->add_attr<float>(valToAttr);
             // wxl
             //primPos = zspos;
 //#if 1

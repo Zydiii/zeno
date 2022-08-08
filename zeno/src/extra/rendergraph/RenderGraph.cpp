@@ -160,7 +160,7 @@ ZENO_API void RenderGraph::debugGraphviz(std::string const &path) {
         stream << "\"" << pass->name << "\" -> { ";
         for (auto& resource : pass->creates)
             stream << "\"" << resource->name << "\" ";
-        stream << "} [color=firebrick]\n";
+        stream << "} [color=cornflowerblue]\n";
 
         // write
         stream << "\"" << pass->name << "\" -> { ";
@@ -317,6 +317,10 @@ ZENO_API void RenderGraph::deserialize(const char *str) {
 
         if(type == 0){
             auto pass = std::make_shared<ForwardPass>(ForwardPass::deserialize(passStr));
+            this->passes[j] = pass;
+        }
+        else if(type == 1){
+            auto pass = std::make_shared<PostProcPass>(PostProcPass::deserialize(passStr));
             this->passes[j] = pass;
         }
         else{

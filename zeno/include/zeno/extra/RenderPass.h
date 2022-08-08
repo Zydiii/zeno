@@ -40,4 +40,17 @@ struct ForwardPass : RenderPassBase {
     ZENO_API virtual void render() override;
 };
 
+struct PostProcPass : RenderPassBase {
+    std::size_t type = 1;
+    ZENO_API PostProcPass();
+    ZENO_API PostProcPass(std::string const &name);
+    ZENO_API ~PostProcPass();
+
+    ZENO_API size_t serializeSize() const override;
+    ZENO_API std::vector<char> serialize() const override;
+    ZENO_API void serialize(char *str) const override;
+    ZENO_API static PostProcPass deserialize(std::vector<char> const &str);
+    ZENO_API virtual void render() override;
+};
+
 }

@@ -24,14 +24,8 @@ struct MakeForwardPass : INode {
         }
         std::string outputname = get_param<std::string>("outputname") + std::to_string(pass->id);
         std::shared_ptr<TextureResource> texResource = std::make_shared<TextureResource>(outputname, pass->id);
-        //std::cout << "texResource->id" << texResource->id << std::endl;
-        //std::cout << "pass->id" << pass->id << std::endl;
-        //builder.create(texResource);
-        //std::cout << renderGraph->getRenderPassSize() << " " << renderGraph->getResourceSize() << std::endl;
-        renderGraph->AddRetainedResource(texResource);
-        builder.write(texResource);
+        builder.create(texResource);
 
-        //std::cout << "RenderPass " << pass->name << " has " << pass->reads.size() << " inputs " << std::endl;
         set_output("output", std::move(texResource));
         set_output("RenderGraph", std::move(renderGraph));
         //set_output("pass", std::move(pass));

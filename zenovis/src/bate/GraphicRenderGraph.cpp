@@ -10,11 +10,12 @@ struct GraphicRenderGraph final : IGraphic {
 
     explicit GraphicRenderGraph(Scene *scene_, zeno::RenderGraphObject *rg) : scene(scene_) {
         zeno::log_info("ToView got RenderGraphObject with passes count: {} resource count: {}",
-                       rg->renderGraph->passes.size(),
-                       rg->renderGraph->resources.size());
-        rg->renderGraph->compile();
+                       rg->getRenderPassSize(),
+                       rg->getResourceSize());
+        //rg->compile();
+        //std::string path = "rendergraph_zevis" + std::to_string(rg->renderGraph->id) + ".gv";
+        //rg->debug(path);
         //rg->renderGraph->execute();
-        //rg->renderGraph->debugGraphviz("test1.gv");
     }
 };
 

@@ -12,7 +12,7 @@ namespace zeno {
 struct RenderGraph;
 
 struct RenderGraphObject : IObjectClone<RenderGraphObject> {
-    std::shared_ptr<RenderGraph> renderGraph;
+    inline static std::shared_ptr<RenderGraph> renderGraph;
 
     RenderGraphObject(){
         renderGraph = std::make_shared<RenderGraph>();
@@ -42,8 +42,8 @@ struct RenderGraphObject : IObjectClone<RenderGraphObject> {
         renderGraph->execute();
     }
 
-    void debug(){
-        renderGraph->debugGraphviz("test.gv");
+    void debug(std::string const &path){
+        renderGraph->debugGraphviz(path);
     }
 
     size_t serializeSize() const {
@@ -65,6 +65,5 @@ struct RenderGraphObject : IObjectClone<RenderGraphObject> {
         renderGraph->deserialize(str);
     }
 };
-
 
 }

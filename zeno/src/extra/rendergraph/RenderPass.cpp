@@ -31,7 +31,7 @@ ZENO_API size_t ForwardPass::serializeSize() const {
     size += sizeof(createsLen);
     for(auto &create : creates)
     {
-        auto createStrSize = create->serializeSize();
+        auto createStrSize = create->actualSerializeSize();
         size += sizeof(createStrSize);
         size += createStrSize;
     }

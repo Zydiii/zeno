@@ -6,7 +6,7 @@ namespace zeno {
 
 ZENO_API RenderGraph::RenderGraph()
 {
-    static int id_{10};
+    static int id_{0};
     id = id_++;
 }
 ZENO_API RenderGraph::~RenderGraph() = default;
@@ -14,8 +14,10 @@ ZENO_API RenderGraph::~RenderGraph() = default;
 ZENO_API void RenderGraph::compile() {
     //std::cout << "compile" << std::endl;
     // counting ref count
-    for(auto &pass : passes)
+    for(auto &pass : passes){
         pass->refCount = pass->creates.size() + pass->writes.size();
+        std::cout << "in compile " << pass->refCount << std::endl;
+    }
 
     std::stack<ResourceBase*> unreferencedResources;
     for(auto &resource : resources){
@@ -121,10 +123,10 @@ ZENO_API void RenderGraph::compile() {
 ZENO_API void RenderGraph::execute() const {
      for(auto &step : timeline){
          std::cout << "### timeline ###" << std::endl;
-         for(auto resource : step.instantiatedResources)
+         for(auto &resource : step.instantiatedResources)
              resource->instantiate();
          step.pass->render();
-         for(auto resource : step.releasedResources)
+         for(auto &resource : step.releasedResources)
              resource->release();
      }
 }
@@ -247,8 +249,6 @@ ZENO_API void RenderGraph::serialize(char *str) const {
     memcpy(str + i, &passesLen, sizeof(passesLen));
     i += sizeof(passesLen);
     for(const auto &pass : passes){
-        //'std::cout << pass->id << std::endl;
-
         auto passStr = pass->serialize();
         auto passStrSize = passStr.size();
 
@@ -262,8 +262,6 @@ ZENO_API void RenderGraph::serialize(char *str) const {
 
 ZENO_API void RenderGraph::deserialize(const char *str) {
     size_t i{0};
-
-    //std::cout << "RenderGraph::deserialize" << std::endl;
 
     memcpy(&id, str + i, sizeof(id));
     i += sizeof(id);

@@ -6,7 +6,7 @@ namespace zeno{
 struct MakeRenderGraph : INode{
     virtual void apply() override {
         auto renderGraph = std::make_shared<RenderGraphObject>();
-        //printf("in begin %d \n", renderGraph->renderGraph->timeline.size());
+        //printf("in begin %d \n", renderGraph->renderGraph->id);
         set_output("RenderGraph", std::move(renderGraph));
     }
 
@@ -24,9 +24,9 @@ ZENDEFNODE(MakeRenderGraph, {
 struct RenderGraphFinalize : INode{
     virtual void apply() override {
         auto renderGraph = get_input<zeno::RenderGraphObject>("RenderGraph");
-        renderGraph->compile();
-        //printf("in finalize %d \n", renderGraph->renderGraph->timeline.size());
-        //renderGraph->debug();
+        //renderGraph->compile();
+        //std::string path = "rendergraph_zeno" + std::to_string(renderGraph->renderGraph->id) + ".gv";
+        //renderGraph->debug(path);
         set_output("RenderGraph", std::move(renderGraph));
     }
 
